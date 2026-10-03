@@ -2,6 +2,8 @@
 
 One file per idea, written before the code. A spec is short: it exists to pin down what the thing is for and how we'll know it works, not to design every detail.
 
+Every spec is checked against [the principles](../PRINCIPLES.md).
+
 ## Flow
 
 1. Copy `0000-template.md` to `NNNN-short-name.md` (next free number).
@@ -18,4 +20,6 @@ One file per idea, written before the code. A spec is short: it exists to pin do
 
 | # | Spec | Status |
 |---|---|---|
-| | | |
+| 0001 | [Evening journal](0001-evening-journal.md) | idea |
+| 0002 | [Pick-up brief](0002-pick-up-brief.md) | idea |
+| 0003 | [Playbook (my take)](0003-playbook.md) | idea |

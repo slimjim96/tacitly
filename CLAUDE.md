@@ -1,15 +1,15 @@
 # Working notes for Claude
 
-A self-hosted tool for the user (Jim). Things come out of his head as entries in an Inbox, with no setup; a to-do is an entry with a checkbox. For the few that matter he can place entries on lenses (sets of scales he designed, each scored -5 to +5), and Postgres/pgvector keeps the shapes and does the searching.
+A self-hosted tool for the user (Jim). Things come out of his head as entries in a Notebook, with no setup; a to-do is an entry with a checkbox. For the few that matter he can place entries on lenses (sets of scales he designed, each scored -5 to +5), and Postgres/pgvector keeps the shapes and does the searching.
 
-**Read first, in this order:** `docs/STORY.md` (what Tacitly is; it outranks everything else), `docs/GLOSSARY.md` (one word per idea, and its one name in code), `docs/PRINCIPLES.md`. The code and specs 0001 to 0005 still use older words (note, thought, aspiration, orbits, drift); the glossary maps them.
+**Read first, in this order:** `docs/STORY.md` (what Tacitly is; it outranks everything else), `docs/GLOSSARY.md` (one word per idea, and its one name in code), `docs/PRINCIPLES.md`. The code and specs 0001 to 0005 still use older words (Inbox, note, thought, aspiration, orbits, drift); the glossary maps them.
 
 ## Handoff (3 October 2026)
 
-- **State:** Three branches are pushed and unmerged, each stacked on the one before: `spec/0004-quick-capture` (entries, to-dos, Inbox), `spec/0005-guided-layout` (sidebar shell, composer, Guide), and `docs/story-and-glossary` (the story and glossary). The code works and passes the smoke test, but it doesn't match the story yet: the story's table "Where today's app disagrees with this story" lists 15 seams.
+- **State:** Three branches are pushed and unmerged, each stacked on the one before: `spec/0004-quick-capture` (entries, to-dos, Inbox), `spec/0005-guided-layout` (sidebar shell, composer, Guide), and `docs/story-and-glossary` (the story and glossary). The code works and passes the smoke test, but it doesn't match the story yet: the story's table "Where today's app disagrees with this story" lists 21 seams.
 - **Next:**
   1. Open PRs and merge in order: 0004, 0005, then story-and-glossary (`gh` isn't installed here; CI runs on PRs only). Deploy to the homelab and run the smoke test there.
-  2. Work the 15 seams through the story's workflow: story, then glossary, then a spec, then code. Start with seam 7 (Claude's MCP tools score as `me`, against principle 3), then seams 1 to 3 (one kind of entry). Re-check specs 0001 to 0003 against the story before building any of them.
+  2. Work the 21 seams through the story's workflow: story, then glossary, then a spec, then code. Start with seam 7 (Claude's MCP tools score as `me`, against principle 3), then seams 1 to 3 (one kind of entry). Re-check specs 0001 to 0003 against the story before building any of them.
 - **Watch out:**
   - Use only glossary words in new specs, UI text and docs. A new word goes into the glossary first. Specs change before the code that depends on them, in their own commit, and "done when" is ticked by checks, not by the builder.
   - Guide quests complete through `emit(event)` from the component that does the action, plus an optional `check(pulse)`. A quest's `target` is a `data-guide` attribute; keep those when restyling. Seam 9 re-sequences the quests.

@@ -18,9 +18,11 @@ It is for one person, self-hosted. Claude is a helper that comes in through a do
 
 ## Day one: the front door
 
-You open Tacitly and see one box and a greeting. You type a line and press Enter. It's saved as an **entry** in your **Inbox**. If it's something to do, you flip the switch to **To-do** first, and it gets a checkbox.
+You open Tacitly and see one box and a greeting. You type a line and press Enter. It's saved as an **entry** in your **Notebook**. If it's something to do, you tick **To-do** before saving, and it gets a checkbox. There is nothing else to choose: no kind, no lens, no score.
 
-That's the whole app on day one. The sidebar shows Inbox, Still true? and Search. Everything else is either empty or tucked under **Lenses**, which the app doesn't push.
+The Notebook is a place you write in, not a queue you clear. Nothing in it is unread, and nothing is overdue. It's a running record of what came out of your head, grouped by day.
+
+That's the whole app on day one. The sidebar shows Notebook, Still true? and Search. Lenses, Connect Claude and the Guide sit at the bottom, out of the way. The lens pages don't appear until a lens exists.
 
 The guide offers one short chapter: write an entry, add a to-do, tick it, let one go. Then it stops asking.
 
@@ -28,16 +30,18 @@ The guide offers one short chapter: write an entry, add a to-do, tick it, let on
 
 During the day you write things down without thinking. A phone shortcut or Claude can drop lines in too, each tagged with where it came from.
 
-In the evening, or whenever you like, you look at the Inbox. You tick what's finished. You **let go** of what no longer matters; it leaves the Inbox but stays searchable. Nothing else is asked of you.
+In the evening, or whenever you like, you look at the Notebook. You tick what's finished. You **let go** of what no longer matters; it leaves the Notebook but stays searchable. Nothing else is asked of you.
 
-Later, when spec 0001 lands, the evening has a home: a **journal** page for the day. You can pull a sentence out of it into an entry.
+Later, when spec 0001 lands, the evening has a home inside the Notebook: each day opens with a **journal** page for that day. You can pull a sentence out of it into an entry.
 
 ## Month one: the few things that matter
 
 Some entries keep coming up. You can do two things with them, both optional and both reversible:
 
-- **Name a direction.** A direction is something you care about and want more of in your days, like *rest properly* or *make things with my hands*. It is a heading, not a destination. It is never done, never scored as a success or failure, and never compared. You can let it go when it stops mattering.
-- **Place it.** You give an entry scores on a **lens**, a set of scales you designed, like draining ↔ energising. The scores are its **shape**.
+- **Place it.** You open the entry and give it scores on a **lens**, a set of scales you designed, like draining ↔ energising. The scores are its **shape**. Placing always happens from the entry itself. The box you write in never places anything: writing and placing are separate acts.
+- **Name a direction.** A direction is something you care about and want more of in your days, like *rest properly* or *make things with my hands*. It is a heading, not a destination. It is never done, never scored as a success or failure, and never compared. You can let it go when it stops mattering. Only a placed entry can be a direction, because a direction needs a shape for anything to lean toward it. Naming a direction on an unplaced entry first asks you to place it.
+
+**Placing is the gate.** The lens pages show placed entries only, and only in the lens they're placed in. An entry placed in Feel never shows on Value's map. Nothing reaches the lens pages any other way.
 
 Placing is where the original idea lives. Once a few entries are placed, the lens pages come alive. A placed entry **leans toward** the direction closest to it in shape. A map lays everything out on your own scales. You can dial in a shape and find what matches it.
 
@@ -45,7 +49,7 @@ The Directions page shows each direction and what currently leans toward it. It 
 
 The guide opens this as a side quest when you place your first entry, not before.
 
-Tacitly doesn't sort your life into long-term and short-term. There is no line between a "big" entry and a small one, and the app never asks you to draw one. A to-do is just an entry with a checkbox. A direction is just an entry you've said you care about. Something can be both, or neither, and most entries are neither. Directions live on the lens side, for the moments that want them; the Inbox never asks about them.
+Tacitly doesn't sort your life into long-term and short-term. There is no line between a "big" entry and a small one, and the app never asks you to draw one. A to-do is just an entry with a checkbox. A direction is just an entry you've said you care about. Something can be both, or neither, and most entries are neither. Directions live on the lens side, for the moments that want them; the Notebook never asks about them.
 
 ## Month three: what comes back
 
@@ -83,8 +87,8 @@ Principle 4 says anything AI writes must come with a three-line handoff. Taken l
 
 1. **One small thing needs no handoff.** A single entry, under a paragraph, written because you asked. The entry is its own summary.
 2. **More than one thing does.** If Claude writes two or more entries, any entry longer than a paragraph, or any summary, brief or journal text in one session, it ends that session with one handoff: state, next, watch out.
-3. **The handoff lands where you'll see it.** With a project, it attaches to the project. Without one, it goes to the Inbox as a single entry tagged via claude, so the session's work arrives with its own wide view on top.
-4. **Visible before enforced.** The server can't see a session end, so in the beta it doesn't block anything. Instead, when Claude has written two or more entries since its last handoff, the Inbox says so in one quiet line. If that line shows up often, phase two makes the MCP tools refuse a second write until a handoff is given.
+3. **The handoff lands where you'll see it.** With a project, it attaches to the project. Without one, it goes to the Notebook as a single entry tagged via claude, so the session's work arrives with its own wide view on top.
+4. **Visible before enforced.** The server can't see a session end, so in the beta it doesn't block anything. Instead, when Claude has written two or more entries since its last handoff, the Notebook says so in one quiet line. If that line shows up often, phase two makes the MCP tools refuse a second write until a handoff is given.
 
 The same rule already applies to Claude working on this repo: `CLAUDE.md` ends every session with a three-line handoff.
 
@@ -94,7 +98,7 @@ A pattern is a named shape you want to recognise, like *burnout*. Today it's an 
 
 - **Its meaning is the lens.** "Burnout" is Energy −4, Fear +3 on Feel. Without that lens it's just a word, and if you archive a scale, its meaning changes. Something that can't exist without its lens belongs to that lens.
 - **It isn't something you wrote down.** It's a search you saved: you dial in a shape and keep it. It never needs a checkbox, never comes back as still true, and never leans toward a direction. As an entry it gets all of those by default and has to opt out of each one.
-- **It keeps the Inbox honest.** Under the one-kind-of-entry model, every entry is unplaced until you place it. A pattern is placed by definition. Keeping it out of entries removes the only exception to that rule.
+- **It keeps the Notebook honest.** Under the one-kind-of-entry model, every entry is unplaced until you place it. A pattern is placed by definition. Keeping it out of entries removes the only exception to that rule.
 
 What we give up, and how it's handled:
 
@@ -109,13 +113,13 @@ These are the seams found by walking the app from the outside in. The change col
 | # | Today | The story says | Change |
 |---|---|---|---|
 | 1 | An entry's kind says both what it is and whether it's been placed | One kind of thing, the entry. To-do, direction and project are properties; placed follows from scores | Replace `kind` with properties |
-| 2 | A note can't be scored, but an unscored thought can | Any entry can be placed; unplaced entries all live in the Inbox | Merge notes and unscored thoughts |
+| 2 | A note can't be scored, but an unscored thought can | Any entry can be placed; unplaced entries all live in the Notebook | Merge notes and unscored thoughts |
 | 3 | Capture defaults differ: app gives a note, ingest and MCP `capture` give a thought | Every door makes a plain entry; scores, if sent, place it | Same defaults in every door |
 | 4 | "Done" means a ticked to-do, and also an aspiration that stops pulling | Done means finished work: to-dos and projects. Directions are never done | Remove done from directions |
 | 5 | Release, archive, delete and skip all mean going away | Let go (entries), archive (scales only), delete (gone for good), skip (guide only) | Rename in the UI and the API docs |
 | 6 | Three fading rules: half-life, 14-day to-dos, notes never | One table of quiet periods | One rule, one place in code |
 | 7 | MCP `score` and `capture` write scores as you | Claude scores only as `claude` (principle 3) | Fix the MCP tools; fix the Connect page copy |
-| 8 | Nothing Claude writes carries a handoff (principle 4) | The beta rule above | MCP `handoff` tool, Inbox line, server instructions |
+| 8 | Nothing Claude writes carries a handoff (principle 4) | The beta rule above | MCP `handoff` tool, Notebook line, server instructions |
 | 9 | The guide makes lenses level 2 of the main path | Capture is the main line; lenses are a side quest | Re-sequence `QUESTS` |
 | 10 | Patterns are entries | A pattern is a saved shape that belongs to a lens | Move patterns under lenses |
 | 11 | Specs add new kinds: take (0003), project as a flagged aspiration (0002) | A take is a form of entry; a project is a property of any entry | Revise 0002 and 0003 |
@@ -123,6 +127,12 @@ These are the seams found by walking the app from the outside in. The change col
 | 13 | The lens pages sit in the main nav with jargon names | Grouped under Lenses, named by what they show | Rename per the glossary |
 | 14 | Specs were edited after the build to match it, and ticked by the builder | Story, then glossary, then spec, then code; "done when" is ticked by checks | Change the spec workflow |
 | 15 | Aspirations are goals: a pull, a finish line, "cold" cards, "Neglected, or not really this shape?" | Directions: present, never done, described not judged | Rename to direction; remove done; rewrite the Orbits copy as neutral observation |
+| 16 | "Make thought" lists an entry under Drift as "unscored in this lens" before anything is placed | Only placed entries appear on lens pages | Drop the unscored list from Loose ends; add an Unplaced filter to Search |
+| 17 | The composer's More menu writes a scored thought, aspiration or pattern in one go | Writing and placing are separate; the box only writes | Remove the More menu; place from the entry |
+| 18 | The composer's Note / To-do switch treats to-do as a kind | To-do is a property | A single To-do toggle |
+| 19 | The front page is called Inbox, a queue you're meant to empty | Notebook: a place you write in | Rename the page, nav, copy and `inbox` endpoint |
+| 20 | The Still true? count is amber, like something overdue; the sidebar lists lens pages before any lens exists | Plain counts; lens pages appear once a lens exists | Restyle the count; fold lens pages under Lenses |
+| 21 | Any entry can be made an aspiration, scored or not | Only a placed entry can be a direction | Offer Name a direction on placed entries; otherwise place first |
 
 ## How this governs the work
 
@@ -141,8 +151,11 @@ These are the seams found by walking the app from the outside in. The change col
 | 3 Oct 2026 | Quiet periods | Accepted as in the glossary |
 | 3 Oct 2026 | Principle 4's scope | **Beta rule** above; review after a few weeks of use |
 | 3 Oct 2026 | Patterns: entries or lenses? | **Lenses**, for the reasons above |
+| 3 Oct 2026 | Inbox? | **Notebook.** An inbox is a queue you're meant to empty, which contradicts "nothing nags". A notebook is a place you write in, and the journal can live inside it |
+| 3 Oct 2026 | How do entries reach the lens pages? | **Only by placing.** The box you write in only writes, and only placed entries can be directions |
 | 3 Oct 2026 | Is "direction" the right word? | **Yes, for now.** Long-term versus short-term is a grey area the app deliberately stays out of; directions stay optional and on the lens side |
 
 ## Open questions for Jim
 
 - **Principle 4 beta.** Is "two or more entries, or anything over a paragraph" the right line?
+- **Guide levels and confetti.** They're about learning the app, not your life, but "Level 2" sits close to the scoreboard feeling the story removes. Proposal: keep chapters and the progress bar, drop "Level" and the burst.

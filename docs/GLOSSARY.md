@@ -10,13 +10,13 @@ Rows marked **change** describe the target, not today's code. The [story](STORY.
 | Word | Means | Code | Note |
 |---|---|---|---|
 | **Entry** | Anything you write down. There is one kind of entry | `entries` row | **change:** replaces the kinds note, thought, aspiration and pattern |
-| **To-do** | An entry with a checkbox | `is_todo` | Any entry can be a to-do |
-| **Direction** | Something you care about and want more of, held in the present. Never done, never measured against. Placed entries lean toward the direction closest in shape | **change:** `is_direction` | Replaces aspiration. See the story for why not "goal" |
+| **To-do** | An entry with a checkbox | `is_todo` | Any entry can be a to-do. Set with the To-do toggle when writing, or from the entry's menu |
+| **Direction** | Something you care about and want more of, held in the present. Never done, never measured against. Only a placed entry can be a direction. Placed entries lean toward the direction closest in shape | **change:** `is_direction` | Replaces aspiration. See the story for why not "goal" |
 | **Project** | A piece of work you come back to across sessions, with handoffs. Can be done | **change:** `is_project` | A property of any entry, not of a direction |
 | **Take** | An entry written as When / I do / Because / Except, with a domain | `form = 'take'`, `domain` (spec 0003) | A form of entry, not a new kind |
 | **Handoff** | Three lines, State / Next / Watch out, left at the end of a session | `handoffs` row (spec 0002) | Required of Claude under principle 4's beta rule |
 | **Brief** | A one-screen summary of a project, built by script | `/api/projects/{id}/brief` (spec 0002) | Never written by a model |
-| **Journal page** | One free-text page per day | `journal_days` row (spec 0001) | Entries can be pulled out of it |
+| **Journal page** | One free-text page per day, shown in the Notebook at the top of its day | `journal_days` row (spec 0001) | Entries can be pulled out of it |
 | **Lens** | A set of scales you designed, for one question, like Feel or Value | `lenses` row | |
 | **Scale** | One axis of a lens, with a word at each end: draining ↔ energising | `dimensions` row | Decided: "scale" on screen, `dimension` in code |
 | **Weight** | How much a scale counts when comparing shapes. 0 means watched but not counted | `dimensions.weight` | |
@@ -34,8 +34,8 @@ Rows marked **change** describe the target, not today's code. The [story](STORY.
 | **Open** | Still in play | `status = 'active'` | |
 | **Done** | Finished work. Only to-dos and projects can be done | `status = 'done'` | **change:** directions can't be done |
 | **Let go** | No longer relevant. Out of lists, still searchable, can be brought back | `status = 'released'` | **change:** UI word becomes "let go"; code may stay |
-| **Placed** | Has at least one score from you in a lens | an `entry_vectors` row exists | Not a stored flag; it follows from scores |
-| **Unplaced** | Has no scores from you yet | no `entry_vectors` row | The normal state of most entries |
+| **Placed** | Has at least one score from you in a lens | an `entry_vectors` row exists | Not a stored flag; it follows from scores. Only placed entries appear on lens pages, and only in the lens they're placed in |
+| **Unplaced** | Has no scores from you yet | no `entry_vectors` row | The normal state of most entries. Lives in the Notebook and Search, never on lens pages |
 | **Leans toward** | A placed entry's closest direction in a lens, if close enough | gravity in `Mind` | Replaces "orbits" and "pulled toward" |
 | **Archived** | A scale taken out of the shape but keeping its scores | `dimensions.archived_at` | Scales only. Entries are let go, not archived |
 | **Fading** | How long since you last touched an entry, against its quiet period | `salience`, `touched_at` | |
@@ -44,13 +44,13 @@ Rows marked **change** describe the target, not today's code. The [story](STORY.
 
 | Word | Means | Code | Replaces |
 |---|---|---|---|
-| **Write** | Make a new entry from any door | `POST /api/entries`, `/api/ingest`, MCP `note` | "capture", "note", "add" as separate actions |
+| **Write** | Make a new entry from any door. Writing never places | `POST /api/entries`, `/api/ingest`, MCP `note` | "capture", "note", "add" as separate actions |
 | **Tick** | Mark a to-do or project done; untick reopens it | `status` → `done` | |
 | **Let go** | Move an entry out of the way, recoverably. The only way to put down a direction | `status` → `released` | "release" |
 | **Bring back** | Undo a let go | `status` → `active` | |
 | **Delete** | Remove for good. Always asks once | `DELETE /api/entries/{id}` | |
-| **Place** | Give an entry its first score in a lens | `PUT /api/entries/{id}/scores` | "promote", "make thought", "capture with a shape", "give it a shape" |
-| **Name a direction** | Set or clear the direction property on an entry | **change:** `PATCH {isDirection}` | "make aspiration", "promote" |
+| **Place** | Give an entry its first score in a lens, from the entry itself. The only way onto the lens pages | `PUT /api/entries/{id}/scores` | "promote", "make thought", "capture with a shape", "give it a shape" |
+| **Name a direction** | Set or clear the direction property on a placed entry. On an unplaced entry it asks you to place it first | **change:** `PATCH {isDirection}` | "make aspiration", "promote" |
 | **Mark as project** | Set or clear the project property | **change:** `PATCH {isProject}` | |
 | **Keep** | Answer "still true?" with yes; starts a new quiet period | `POST /api/entries/{id}/affirm` | "affirm", "still true" as a button |
 | **Hand off** | Leave a three-line handoff at the end of a session | **change:** MCP `handoff`, `POST /api/handoffs` | |
@@ -62,9 +62,9 @@ Rows marked **change** describe the target, not today's code. The [story](STORY.
 
 | Word | Shows | Code page | Today's label |
 |---|---|---|---|
-| **Inbox** | Open to-dos, then unplaced entries by day | `inbox` | Inbox |
+| **Notebook** | What you've written, by day, newest first, with open to-dos at the top. Each day can open with its journal page | **change:** `notebook` | Inbox (**change**) |
 | **Still true?** | Entries back from their quiet period | `review` | Still true? |
-| **Search** | Every entry, with filters | `stream` | Everything (**change**) |
+| **Search** | Every entry, with filters, including Unplaced | `stream` | Everything (**change**) |
 | **Directions** | Each direction and what leans toward it, described, not judged | `orbits` | Orbits (**change**) |
 | **Map** | Placed entries laid out on two of your scales | `map` | Map |
 | **Find by shape** | Dial in a shape, see what matches | `shape` | Shape (**change**) |
@@ -73,7 +73,7 @@ Rows marked **change** describe the target, not today's code. The [story](STORY.
 | **Connect Claude** | How to let Claude in, and whether it has | `connect` | Connect Claude |
 | **Guide** | Quests that teach the app | guide panel | Guide |
 
-Directions, Map, Find by shape and Loose ends sit together under **Lenses** in the sidebar.
+The sidebar lists Notebook, Still true? and Search. Directions, Map, Find by shape and Loose ends sit together under **Lenses**, and appear once a lens exists. Lenses, Connect Claude and Guide sit at the bottom. Counts are plain numbers, never coloured as overdue.
 
 ## Time
 
@@ -105,6 +105,7 @@ Don't use these on screen or in new specs. They stay in old specs and code until
 
 | Retired | Use instead |
 |---|---|
+| inbox | Notebook |
 | note, thought (as kinds) | entry |
 | goal, aspiration, target | direction |
 | progress, behind, cold, neglected (about your life) | don't. Describe, don't judge |

@@ -4,18 +4,19 @@ A self-hosted tool for the user (Jim). It is capture-first: quick notes and to-d
 
 ## Handoff (3 October 2026)
 
-- **State:** Spec 0004 (quick capture) is built on branch `spec/0004-quick-capture`: notes, to-dos, Inbox, promotion, the stale to-do rule, MCP `note`/`todos`/`done`, and the app opens with no lenses. The smoke test passes locally against Docker, and the UI was driven in headless Chrome. No GitHub issue exists for 0004 yet (`gh` isn't installed here).
+- **State:** Two spec branches are pushed and unmerged. `spec/0004-quick-capture` adds notes, to-dos and the Inbox. `spec/0005-guided-layout` is built on top of it: the sidebar shell, the composer, row menus, undo toasts, Connect Claude, and the Guide (11 quests). Both pass the smoke test against Docker. The whole guide was played through in headless Chrome on a fresh install, at desktop and phone width, in light and dark mode.
 - **Direction:** Capture-first (decided 3 October 2026). Scoring is optional, later, and only for what earns it. The principles stay as written. The original vector concept may become a separate game or learning project later; keep it out of this repo.
 - **Next:**
-  1. Merge 0004 once CI passes on the PR, set its status to `shipped`, then deploy to the homelab and run the smoke test there.
-  2. Build specs 0001 evening journal, 0003 playbook, 0002 pick-up brief, in that order. 0003 adds `take`, which should also be a promotion target for notes.
+  1. Open PRs for 0004, then 0005 (CI runs on PRs only; `gh` isn't installed here). Merge in that order, set both specs to `shipped`, then deploy to the homelab and run the smoke test there.
+  2. Build specs 0001 evening journal, 0003 playbook, 0002 pick-up brief, in that order. Each new feature should add a quest to `QUESTS` in `web/src/guide.tsx` if it has a control worth teaching. 0003 adds `take`, which should also be a promotion target for notes.
 - **Watch out:**
-  - Notes are unscored by rule, enforced in `Mind` (`Refused` becomes a 400, or a tool error over MCP). A note never has a vector, so lens views need no filter beyond `unscoredIn`, which already skips notes.
+  - Guide quests complete through `emit(event)` from the component that does the action, plus an optional `check(pulse)` for credit from data. A quest's `target` is a `data-guide` attribute; keep those attributes when restyling.
+  - Notes are unscored by rule, enforced in `Mind` (`Refused` becomes a 400, or a tool error over MCP). A note never has a vector.
   - `db/schema.sql` runs on every start and must stay idempotent. It carries the v1 and v2 upgrade paths.
   - Vectors are built only by the triggers in `schema.sql`. Application code never writes a vector. The rule (`score_or_0 * sqrt(weight)`, active dimensions by position, `scorer = 'me'` only) is mirrored in `VectorSpace` in `Engine/Algorithms.cs`; change both together.
   - `EntryCols` in `Db.cs` is read by position; `NearestAsync` reads the distance from the column after it. Adding an entry column shifts both.
   - `src/Tacitly.Api/wwwroot/` is build output and is not committed. Run `npm run build` in `web/` to produce it.
-  - On Jim's Windows machine `python3` hits the Store stub; use `python` (3.11). The clone has `core.filemode false`.
+  - On Jim's Windows machine `python3` hits the Store stub; use `python` (3.11). The clone has `core.filemode false`. Long heredocs in the Bash tool can fail to parse here; write files with the editor instead.
 
 ## Name
 

@@ -8,7 +8,13 @@ The Inbox is the front door. Type a line and press Enter: it's a **note**. Start
 
 A note can become more. *Make thought* or *make aspiration* moves it into the lens views, unscored and ready to place; that's the only way into the vectors. Until then, notes stay out of the unscored count, drift, themes, orbits and the map. Plain notes fade quietly; a to-do left open for 14 days comes back in *Still true?*.
 
-Prefer to score as you capture? *Capture with a shape* opens the full capture panel.
+Prefer to score as you capture? The composer's **More** menu opens the full capture with a shape for a thought, aspiration or pattern.
+
+## Finding your way
+
+The app is laid out like a desktop assistant. A sidebar lists every section with live counts: Inbox, *Still true?*, Everything, the lens views, Lenses and **Connect Claude**. On a phone it slides out from the menu button. Every action is a labelled control: the Note / To-do switch, a checkbox on to-dos, a **⋯** menu on each note. Ticking, releasing and promoting can be undone from the message that appears. Press `/` or `n` anywhere to jump to the composer.
+
+The **Guide** is a short quest log in four chapters: Capture, Place it, Bring in Claude, Keep it true. Each quest says what to do, *Show me* rings the control to use, and the quest ticks itself off when you actually do it. A fresh install opens with the guide and tips on; anyone else can open it from the bottom of the sidebar. Progress is kept per browser, and quests your data already shows are credited automatically.
 
 ## You write the vectors
 

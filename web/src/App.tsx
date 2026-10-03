@@ -1,43 +1,37 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { activeLens, api, type Dimension, type EntryDetail, type Kind, type Lens, type Pulse, type ScorePatch, type Scores } from './api'
-import { DimSlider, KindMark, Radar, Sim } from './viz'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { activeLens, api, type Lens, type Pulse } from './api'
+import { AppCtx, LENS_PAGES, PAGES, useApp, type Ctx, type Page, type Toast } from './context'
 import { Drift, Orbits, Review, Stream } from './Views'
 import { Shape } from './Shape'
 import { MapView } from './MapView'
 import { Lenses } from './Lenses'
 import { Drawer } from './Drawer'
 import { Inbox } from './Inbox'
+import { Connect } from './Connect'
+import { Celebration, GuidePanel, QUESTS, Spotlight, useGuide } from './guide'
+import { Icon, Kbd, Toasts, type IconName, type LiveToast } from './ui'
 
-type Tab = 'inbox' | 'orbits' | 'stream' | 'shape' | 'map' | 'drift' | 'review' | 'lenses'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'inbox', label: 'Inbox' },
-  { id: 'orbits', label: 'Orbits' },
-  { id: 'map', label: 'Map' },
-  { id: 'shape', label: 'Shape' },
-  { id: 'stream', label: 'Stream' },
-  { id: 'drift', label: 'Drift' },
-  { id: 'review', label: 'Still true?' },
-  { id: 'lenses', label: 'Lenses' },
-]
-/** Tabs that look at one lens; with no lens yet they offer to create one. */
-const LENS_TABS: Tab[] = ['orbits', 'map', 'shape', 'drift']
+export { useApp }
 
-interface Ctx {
-  lenses: Lens[]        // archived dimensions removed
-  allLenses: Lens[]     // everything, for the editor
-  lens: Lens | null
-  version: number
-  refresh: () => void
-  open: (entryId: string) => void
+const META: Record<Page, { title: string; icon: IconName; desc: string }> = {
+  inbox: { title: 'Inbox', icon: 'inbox', desc: 'Notes and to-dos. Nothing to set up, nothing to score.' },
+  review: { title: 'Still true?', icon: 'review', desc: 'Things that have faded. Keep, finish or let go of each one.' },
+  stream: { title: 'Everything', icon: 'stream', desc: 'Every entry, newest first. Search and filter by kind.' },
+  orbits: { title: 'Orbits', icon: 'orbits', desc: 'Your aspirations, and the thoughts each one pulls in.' },
+  map: { title: 'Map', icon: 'map', desc: 'Everything you\'ve scored, laid out on your own scales.' },
+  shape: { title: 'Shape', icon: 'shape', desc: 'Dial in a shape with sliders and see what matches it.' },
+  drift: { title: 'Drift', icon: 'drift', desc: 'Scored thoughts nothing is pulling on, and entries not placed yet.' },
+  lenses: { title: 'Lenses', icon: 'lenses', desc: 'The scales you score things on. Each lens is its own space.' },
+  connect: { title: 'Connect Claude', icon: 'connect', desc: 'Let Claude add notes and to-dos, and read your lenses.' },
 }
-const AppCtx = createContext<Ctx>(null!)
-export const useApp = () => useContext(AppCtx)
 
 const LENS_KEY = 'tacitly.lens'
 const remembered = () => { try { return localStorage.getItem(LENS_KEY) } catch { return null } }
+const fromHash = (): Page => { const h = location.hash.slice(1) as Page; return PAGES.includes(h) ? h : 'inbox' }
+const typing = (el: Element | null) => !!el && el.matches('input, textarea, select, [contenteditable]')
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>(() => (location.hash.slice(1) as Tab) || 'inbox')
+  const [page, setPage] = useState<Page>(fromHash)
   const [lenses, setLenses] = useState<Lens[] | null>(null)
   const [lensId, setLensId] = useState<string | null>(remembered)
   const [pulse, setPulse] = useState<Pulse | null>(null)
@@ -45,16 +39,39 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reviewCount, setReviewCount] = useState(0)
-  const [placing, setPlacing] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
+  const [toasts, setToasts] = useState<LiveToast[]>([])
+  const toastId = useRef(0)
 
   const refresh = useCallback(() => setVersion(v => v + 1), [])
+  const go = useCallback((p: Page) => { setPage(p); setNavOpen(false) }, [])
+  const dismiss = useCallback((id: number) => setToasts(ts => ts.filter(t => t.id !== id)), [])
+  const toast = useCallback((t: Toast) => {
+    const id = ++toastId.current
+    setToasts(ts => [...ts.slice(-2), { ...t, id }])
+    setTimeout(() => dismiss(id), t.action ? 6000 : 3500)
+  }, [dismiss])
+
+  const guide = useGuide(pulse, toast, go)
+  const { emit, clearFocus } = guide
 
   useEffect(() => {
     api.lenses().then(setLenses).catch(e => setError(e.message))
     api.pulse().then(setPulse).catch(() => {})
     api.review().then(r => setReviewCount(r.length)).catch(() => {})
   }, [version])
-  useEffect(() => { location.hash = tab }, [tab])
+
+  // The address bar follows the page, and Back/Forward follow the address bar.
+  useEffect(() => { if (location.hash.slice(1) !== page) location.hash = page }, [page])
+  useEffect(() => {
+    const onHash = () => setPage(fromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  useEffect(() => {
+    if (page === 'map') emit('view.map')
+    if (page === 'review') emit('view.review')
+  }, [page, emit])
   useEffect(() => { try { if (lensId) localStorage.setItem(LENS_KEY, lensId) } catch { /* ignore */ } }, [lensId])
   useEffect(() => {
     const onError = (e: PromiseRejectionEvent) => setError(String(e.reason?.message ?? e.reason))
@@ -62,262 +79,173 @@ export default function App() {
     return () => window.removeEventListener('unhandledrejection', onError)
   }, [])
 
+  // Keyboard: "/" or "n" jumps to the composer; Esc closes the menu and any "Show me" tip.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === '/' || e.key === 'n') && !typing(document.activeElement) && !e.metaKey && !e.ctrlKey && !e.altKey && !openId) {
+        e.preventDefault()
+        setPage('inbox')
+        setTimeout(() => document.getElementById('composer-input')?.focus(), 0)
+      }
+      if (e.key === 'Escape' && !openId) { setNavOpen(false); clearFocus() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openId, clearFocus])
+
   const active = useMemo(() => (lenses ?? []).map(activeLens), [lenses])
   const lens = useMemo(() => active.find(l => l.id === lensId) ?? active[0] ?? null, [active, lensId])
-  const ctx: Ctx = { lenses: active, allLenses: lenses ?? [], lens, version, refresh, open: setOpenId }
 
-  if (!lenses) return <div className="shell"><p className="muted">{error ?? 'Loading…'}</p></div>
+  if (!lenses) return <div className="boot"><p className="muted">{error ?? 'Loading…'}</p></div>
+
+  const ctx: Ctx = {
+    lenses: active, allLenses: lenses, lens, setLensId, pulse, reviewCount, version, refresh,
+    open: setOpenId, page, go, toast, emit,
+  }
+  const meta = META[page]
+  const isLensPage = LENS_PAGES.includes(page)
 
   return (
     <AppCtx.Provider value={ctx}>
-      <div className="shell">
-        <header className="top">
-          <div className="brand">
-            <span className="logo" aria-hidden>◉</span>
-            <h1>Tacitly</h1>
-          </div>
-          {pulse && (
-            <p className="pulse">
-              <button className="link plain" onClick={() => setTab('inbox')}><b>{pulse.todos}</b> to do · <b>{pulse.notes}</b> notes</button>
-              {lenses.length > 0 && <> · <b>{pulse.aspirations}</b> aspirations · <b>{pulse.thoughts}</b> thoughts · <b>{pulse.patterns}</b> patterns</>}
-              {pulse.unscored > 0 && <> · <button className="link" onClick={() => setTab('drift')}><b>{pulse.unscored}</b> unscored</button></>}
-            </p>
+      <div className={`app ${navOpen ? 'nav-open' : ''} ${guide.panel ? 'with-guide' : ''}`}>
+        <Sidebar guideDone={guide.done.size} guideOpen={guide.panel} onGuide={() => guide.setPanel(!guide.panel)} />
+        {navOpen && <div className="nav-scrim" onClick={() => setNavOpen(false)} />}
+
+        <div className="main">
+          <header className="page-head">
+            <button className="icon-btn hamburger" aria-label="Open menu" onClick={() => setNavOpen(true)}><Icon name="menu" /></button>
+            <div className="page-title">
+              <h1><Icon name={meta.icon} size={22} /> {meta.title}</h1>
+              <p className="muted">{meta.desc}</p>
+            </div>
+            {isLensPage && active.length > 0 && (
+              <label className="lens-picker">
+                <span className="muted small">Lens</span>
+                <select value={lens?.id ?? ''} onChange={e => setLensId(e.target.value)}>
+                  {active.map(l => <option key={l.id} value={l.id}>{l.name} ({l.dimensions.length})</option>)}
+                </select>
+              </label>
+            )}
+          </header>
+
+          {error && (
+            <div className="error-banner" role="alert">
+              <span>{error}</span>
+              <button className="icon-btn" aria-label="Dismiss" onClick={() => setError(null)}><Icon name="x" size={16} /></button>
+            </div>
           )}
-        </header>
 
-        <QuickCapture />
-        {lenses.length > 0 && (placing
-          ? <><Capture /><button className="link small placing-toggle" onClick={() => setPlacing(false)}>back to quick capture</button></>
-          : <button className="link small placing-toggle" onClick={() => setPlacing(true)}
-              title="Capture a thought, aspiration or pattern and score it straight away">capture with a shape</button>)}
+          <main className="page">
+            {page === 'inbox' && <Inbox onTour={() => { guide.setPanel(true); guide.setTips(true) }} />}
+            {page === 'stream' && <Stream />}
+            {page === 'review' && <Review />}
+            {page === 'connect' && <Connect />}
+            {page === 'lenses' && (lenses.length === 0 ? <FirstRun /> : <Lenses onSelect={setLensId} />)}
+            {isLensPage && (
+              !lens ? <FirstRun />
+              : lens.dimensions.length === 0
+                ? <p className="empty">“{lens.name}” has no dimensions yet. <button className="link accent" onClick={() => go('lenses')}>Add some</button>.</p>
+                : <>
+                    {page === 'orbits' && <Orbits lens={lens} />}
+                    {page === 'map' && <MapView lens={lens} />}
+                    {page === 'shape' && <Shape lens={lens} />}
+                    {page === 'drift' && <Drift lens={lens} />}
+                  </>
+            )}
+          </main>
+        </div>
 
-        {error && <p className="error" onClick={() => setError(null)}>{error} <span className="muted">(dismiss)</span></p>}
-
-        <nav className="tabs" role="tablist">
-          {TABS.map(t => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-              {t.label}{t.id === 'review' && reviewCount > 0 && <span className="badge">{reviewCount}</span>}
-            </button>
-          ))}
-        </nav>
-
-        {lenses.length > 0 && tab !== 'inbox' && tab !== 'lenses' && (
-          <nav className="lens-bar" aria-label="Lens">
-            <span className="muted small">Lens</span>
-            {lenses.map(l => (
-              <button key={l.id} className={`chip ${l.id === lens?.id ? 'on' : ''}`} onClick={() => setLensId(l.id)}
-                title={l.description}>
-                {l.name} <span className="muted">{l.dimensions.length}d</span>
-              </button>
-            ))}
-            <button className="chip ghost" onClick={() => setTab('lenses')}>+ lens</button>
-          </nav>
-        )}
-
-        <main>
-          {tab === 'inbox' && <Inbox />}
-          {tab === 'stream' && <Stream />}
-          {tab === 'review' && <Review />}
-          {tab === 'lenses' && (lenses.length === 0 ? <FirstRun /> : <Lenses onSelect={setLensId} />)}
-          {LENS_TABS.includes(tab) && (
-            !lens ? <FirstRun />
-            : lens.dimensions.length === 0
-              ? <p className="empty">“{lens.name}” has no dimensions yet. <button className="link accent" onClick={() => setTab('lenses')}>Add some</button>.</p>
-              : <>
-                  {tab === 'orbits' && <Orbits lens={lens} />}
-                  {tab === 'map' && <MapView lens={lens} />}
-                  {tab === 'shape' && <Shape lens={lens} />}
-                  {tab === 'drift' && <Drift lens={lens} />}
-                </>
-          )}
-        </main>
-
+        {guide.panel && <GuidePanel guide={guide} onClose={() => guide.setPanel(false)} />}
+        <Spotlight guide={guide} drawerOpen={!!openId} />
+        <Celebration n={guide.celebrate} />
+        <Toasts items={toasts} dismiss={dismiss} />
         {openId && <Drawer key={openId} id={openId} onClose={() => setOpenId(null)} />}
       </div>
     </AppCtx.Provider>
   )
 }
 
+// ---- sidebar ------------------------------------------------------------------------------------------------
+
+function Sidebar({ guideDone, guideOpen, onGuide }: { guideDone: number; guideOpen: boolean; onGuide: () => void }) {
+  const { page, go, pulse, reviewCount, lenses } = useApp()
+  const item = (p: Page, count?: number, attention = false) => (
+    <li key={p}>
+      <button className={`nav-item ${page === p ? 'on' : ''}`} aria-current={page === p ? 'page' : undefined}
+        data-guide={`nav-${p}`} onClick={() => go(p)}>
+        <Icon name={META[p].icon} />
+        <span className="nav-label">{META[p].title}</span>
+        {!!count && <span className={`nav-count ${attention ? 'attention' : ''}`}>{count}</span>}
+      </button>
+    </li>
+  )
+  const total = QUESTS.length
+  const pct = Math.round((guideDone / total) * 100)
+
+  return (
+    <aside className="sidebar" aria-label="Navigation">
+      <div className="brand">
+        <span className="logo" aria-hidden>◉</span>
+        <span>Tacitly</span>
+      </div>
+
+      <nav>
+        <ul className="nav-group">
+          {item('inbox', pulse?.todos)}
+          {item('review', reviewCount, true)}
+          {item('stream')}
+        </ul>
+
+        <p className="nav-heading">Lens views</p>
+        <ul className="nav-group">
+          {item('orbits')}
+          {item('map')}
+          {item('shape')}
+          {item('drift', lenses.length ? pulse?.unscored : undefined)}
+        </ul>
+
+        <p className="nav-heading">Set up</p>
+        <ul className="nav-group">
+          {item('lenses', lenses.length || undefined)}
+          <li>
+            <button className={`nav-item ${page === 'connect' ? 'on' : ''}`} aria-current={page === 'connect' ? 'page' : undefined}
+              data-guide="nav-connect" onClick={() => go('connect')}>
+              <Icon name="connect" />
+              <span className="nav-label">Connect Claude</span>
+              <span className={`dot ${pulse?.claude ? 'ok' : ''}`} title={pulse?.claude ? 'Connected' : 'Not connected yet'} />
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <button className={`guide-button ${guideOpen ? 'on' : ''}`} onClick={onGuide} aria-expanded={guideOpen}>
+        <span className="ring" style={{ '--p': `${pct}%` } as React.CSSProperties} aria-hidden><Icon name="guide" size={14} /></span>
+        <span className="nav-label">Guide<small>{guideDone === total ? 'All quests done' : `${guideDone} of ${total} quests`}</small></span>
+      </button>
+      <p className="shortcut-hint muted tiny"><Kbd>/</Kbd> new note</p>
+    </aside>
+  )
+}
+
 function FirstRun() {
-  const { refresh } = useApp()
+  const { refresh, emit } = useApp()
   const [name, setName] = useState('')
+  const make = (p: Promise<unknown>) => p.then(() => { emit('lens.created'); refresh() })
   return (
     <section className="first-run">
       <h2>Lenses are optional</h2>
       <p className="muted">Notes and to-dos need nothing set up. A lens is for the few things you want to place and compare.</p>
       <p>
-        A <b>lens</b> is a vector space you design. Each <b>dimension</b> is an axis with a label at both ends
-        (draining ↔ energising). You score thoughts and aspirations along those axes; that score <i>is</i> the vector.
-        Nothing is inferred by a model.
+        A <b>lens</b> is a set of scales you design. Each <b>dimension</b> is a scale with a word at each end,
+        like draining ↔ energising. Where you put something on those scales <i>is</i> its vector. Nothing is guessed by a model.
       </p>
       <div className="row-gap">
-        <button className="primary" onClick={() => api.starter().then(refresh)}>Start with Feel + Value</button>
+        <button className="primary" data-guide="starter-lens" onClick={() => make(api.starter())}>Start with Feel + Value</button>
         <span className="muted">or</span>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Name your first lens" />
-        <button className="chip" disabled={!name.trim()} onClick={() => api.createLens(name.trim()).then(refresh)}>Create</button>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Name your own lens" aria-label="Lens name"
+          onKeyDown={e => { if (e.key === 'Enter' && name.trim()) make(api.createLens(name.trim())) }} />
+        <button className="chip" disabled={!name.trim()} onClick={() => make(api.createLens(name.trim()))}>Create</button>
       </div>
-    </section>
-  )
-}
-
-// ---- quick capture: a line and Enter. No kind, no sliders. ------------------------------------------------
-
-function QuickCapture() {
-  const { refresh } = useApp()
-  const [body, setBody] = useState('')
-  const [todo, setTodo] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [saved, setSaved] = useState<string | null>(null)
-  const ref = useRef<HTMLTextAreaElement>(null)
-  const marked = /^\[\s?\]/.test(body.trim())   // the server strips it and makes a to-do
-
-  useEffect(() => {
-    if (!saved) return
-    const t = setTimeout(() => setSaved(null), 1800)
-    return () => clearTimeout(t)
-  }, [saved])
-
-  async function save() {
-    if (!body.trim() || busy) return
-    setBusy(true)
-    try {
-      const d = await api.note(body, todo)
-      setBody(''); setTodo(false)
-      setSaved(d.entry.isTodo ? 'To-do saved' : 'Saved')
-      refresh()
-      ref.current?.focus()
-    } finally { setBusy(false) }
-  }
-
-  return (
-    <section className="capture quick">
-      <div className="quick-row">
-        <label className="todo-toggle" title="Make it a to-do (or start the line with [])">
-          <input type="checkbox" checked={todo || marked} disabled={marked} onChange={e => setTodo(e.target.checked)} />
-          to-do
-        </label>
-        <textarea ref={ref} value={body} autoFocus aria-label="Quick note"
-          rows={Math.min(6, body.split('\n').length)}
-          placeholder="Note it down…"
-          onChange={e => setBody(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); save() }
-          }} />
-      </div>
-      <p className={`hint quick-hint ${saved ? 'saved' : ''}`} aria-live="polite">
-        {saved ?? 'Enter to save · Shift+Enter for a new line · start with [] for a to-do'}
-      </p>
-    </section>
-  )
-}
-
-// ---- capture with a shape: write the text, then place it in the space -----------------------------------
-
-/** One dimension from the wild-card pool, outside the current lens, offered at random. */
-function pickWild(lenses: Lens[], current: Lens | null, not?: string): (Dimension & { lensName: string }) | null {
-  const pool = lenses.flatMap(l => l.id === current?.id ? [] : l.dimensions.filter(d => d.wildcard && d.id !== not).map(d => ({ ...d, lensName: l.name })))
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null
-}
-
-function Capture() {
-  const { lens, lenses, refresh, open } = useApp()
-  const [kind, setKind] = useState<Exclude<Kind, 'note'>>('thought')
-  const [body, setBody] = useState('')
-  const [scores, setScores] = useState<Scores>({})
-  const [showScore, setShowScore] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<EntryDetail | null>(null)
-  const [wild, setWild] = useState<(Dimension & { lensName: string }) | null>(null)
-  useEffect(() => { setWild(pickWild(lenses, lens)) }, [lenses, lens])
-
-  const dims = lens?.dimensions ?? []
-  const setScore = (id: string, v: number | null) =>
-    setScores(s => { const n = { ...s }; if (v === null) delete n[id]; else n[id] = v; return n })
-
-  async function save() {
-    if (!body.trim() || busy) return
-    setBusy(true)
-    try {
-      const patch: ScorePatch = { ...scores }
-      setResult(await api.capture(kind, body, patch))
-      setBody(''); setScores({})
-      setWild(pickWild(lenses, lens, wild?.id))
-      refresh()
-    } finally { setBusy(false) }
-  }
-
-  const placeholder = { thought: "What's on your mind?", aspiration: 'What do you want to become, build or reach?', pattern: 'Name a shape you want to recognise (e.g. "burnout", "flow")' }[kind]
-  const landing = result?.lenses.find(l => l.lensId === lens?.id) ?? result?.lenses[0]
-
-  return (
-    <section className="capture">
-      <div className="capture-top">
-        <div className="seg" role="radiogroup" aria-label="Kind">
-          {(['thought', 'aspiration', 'pattern'] as const).map(k => (
-            <button key={k} role="radio" aria-checked={kind === k} className={kind === k ? `on ${k}` : ''} onClick={() => setKind(k)}>
-              {k[0].toUpperCase() + k.slice(1)}
-            </button>
-          ))}
-        </div>
-        {dims.length > 0 && (
-          <button className="link small" onClick={() => setShowScore(s => !s)}>
-            {showScore ? 'hide scoring' : `score in ${lens!.name}`}
-          </button>
-        )}
-      </div>
-      <textarea value={body} rows={2} placeholder={placeholder}
-        onChange={e => setBody(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save() } }} />
-
-      {showScore && dims.length > 0 && (
-        <div className="score-panel">
-          <div>
-            <div className="sliders">
-              {dims.map(d => <DimSlider key={d.id} dim={d} value={scores[d.id]} onChange={v => setScore(d.id, v)} />)}
-            </div>
-            {wild && (
-              <div className="wild">
-                <div className="wild-head">
-                  <span className="wild-tag">Wild card · {wild.lensName}</span>
-                  <button className="link tiny" onClick={() => { setScore(wild.id, null); setWild(pickWild(lenses, lens, wild.id)) }}>another</button>
-                </div>
-                <DimSlider dim={wild} value={scores[wild.id]} onChange={v => setScore(wild.id, v)} />
-              </div>
-            )}
-          </div>
-          <div className="preview">
-            <Radar dims={dims} series={[{ scores, tone: kind === 'pattern' ? 'pattern' : 'self' }]} size={210} />
-            <p className="muted tiny center">{dims.filter(d => d.id in scores).length}/{dims.length} scored · untouched = unscored</p>
-          </div>
-        </div>
-      )}
-
-      <div className="capture-row">
-        <span className="hint">Ctrl/⌘+Enter to save</span>
-        <button className="primary" disabled={busy || !body.trim()} onClick={save}>{busy ? 'Saving…' : 'Save'}</button>
-      </div>
-
-      {result && (
-        <div className="landed">
-          {!landing ? (
-            <p className="muted">Saved without scores. It won't appear in any space until you score it. <button className="link accent" onClick={() => open(result.entry.id)}>Score it</button></p>
-          ) : (
-            <>
-              {result.entry.kind === 'thought' && (landing.gravity
-                ? <p>In <b>{landing.lensName}</b>, pulled toward <KindMark kind="aspiration" /> <b>{landing.gravity.entry.body}</b> <Sim v={landing.gravity.similarity} /></p>
-                : <p className="muted">In {landing.lensName}: drifting. No aspiration has this shape.</p>)}
-              {landing.near.length > 0 && (
-                <ul className="mini">
-                  {landing.near.slice(0, 3).map(n => (
-                    <li key={n.entry.id}><KindMark kind={n.entry.kind} /><button className="link plain" onClick={() => open(n.entry.id)}>{n.entry.body}</button><Sim v={n.similarity} /></li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-          <button className="link small" onClick={() => setResult(null)}>dismiss</button>
-        </div>
-      )}
     </section>
   )
 }

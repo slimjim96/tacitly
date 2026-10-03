@@ -28,7 +28,7 @@ export interface MapPoint {
 }
 export interface LensMap { lens: Lens; points: MapPoint[]; themes: Theme[] }
 export interface Inbox { todos: Entry[]; notes: Entry[]; doneRecently: Entry[] }
-export interface Pulse { notes: number; todos: number; thoughts: number; aspirations: number; patterns: number; lenses: number; dimensions: number; scores: number; unscored: number }
+export interface Pulse { notes: number; todos: number; thoughts: number; aspirations: number; patterns: number; lenses: number; dimensions: number; scores: number; unscored: number; claude: number }
 
 const TOKEN_KEY = 'tacitly.token'
 const token = () => { try { return localStorage.getItem(TOKEN_KEY) ?? '' } catch { return '' } }

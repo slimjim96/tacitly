@@ -24,3 +24,4 @@ Every spec is checked against [the principles](../PRINCIPLES.md).
 | 0002 | [Pick-up brief](0002-pick-up-brief.md) | idea |
 | 0003 | [Playbook (my take)](0003-playbook.md) | idea |
 | 0004 | [Quick capture](0004-quick-capture.md) | building |
+| 0005 | [Guided layout](0005-guided-layout.md) | building |

@@ -428,7 +428,7 @@ public sealed class Mind(Db db, MindOptions opt)
         {
             notes = c["note"], todos = c["todo"],
             thoughts = c["thought"], aspirations = c["aspiration"], patterns = c["pattern"],
-            lenses = c["lens"], dimensions = c["dimension"], scores = c["score"], unscored = c["unscored"],
+            lenses = c["lens"], dimensions = c["dimension"], scores = c["score"], unscored = c["unscored"], claude = c["claude"],
         };
     }
 

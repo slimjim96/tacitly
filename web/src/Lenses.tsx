@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { api, type Dimension, type Lens } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
+import { ConfirmButton } from './ui'
 
 /** Design your vector spaces: lenses, their dimensions, poles, weights and order. */
 export function Lenses({ onSelect }: { onSelect: (id: string) => void }) {
-  const { allLenses: lenses, refresh } = useApp()
+  const { allLenses: lenses, refresh, emit } = useApp()
   const [name, setName] = useState('')
 
   async function create() {
     const l = await api.createLens(name.trim())
+    emit('lens.created')
     setName('')
     onSelect(l.id)
     refresh()
@@ -28,7 +30,7 @@ export function Lenses({ onSelect }: { onSelect: (id: string) => void }) {
           onKeyDown={e => { if (e.key === 'Enter' && name.trim()) create() }} />
         <button className="primary" disabled={!name.trim()} onClick={create}>Add lens</button>
         {!lenses.some(l => l.name === 'Shadow') && (
-          <button className="chip" onClick={() => api.shadow().then(l => { onSelect(l.id); refresh() })}
+          <button className="chip" onClick={() => api.shadow().then(l => { emit('lens.created'); onSelect(l.id); refresh() })}
             title="Avoidance, Residue, Ego, Source, Regret, Reversibility, Decay, Drag: all wild cards, Source and Drag counted">
             + Shadow lens
           </button>
@@ -59,11 +61,7 @@ function LensEditor({ lens }: { lens: Lens }) {
     setDraft({ name: '', lowLabel: '', highLabel: '', weight: 1 })
     refresh()
   }
-  async function remove() {
-    if (confirm(`Delete the lens “${lens.name}” and every score in it? Entries themselves stay.`)) {
-      await api.deleteLens(lens.id); refresh()
-    }
-  }
+  const remove = () => api.deleteLens(lens.id).then(refresh)
 
   return (
     <article className="card lens-editor">
@@ -71,7 +69,7 @@ function LensEditor({ lens }: { lens: Lens }) {
         <input className="lens-name" defaultValue={lens.name} onBlur={e => e.target.value.trim() && e.target.value !== lens.name && save({ name: e.target.value })} />
         <input className="grow" defaultValue={lens.description} placeholder="What is this lens for?"
           onBlur={e => e.target.value !== lens.description && save({ description: e.target.value })} />
-        <button className="link danger small" onClick={remove}>delete lens</button>
+        <ConfirmButton className="link danger small" label="delete lens" question={`Delete “${lens.name}” and every score in it? Entries stay.`} onConfirm={remove} />
       </header>
 
       <label className="gravity">
@@ -116,11 +114,7 @@ function LensEditor({ lens }: { lens: Lens }) {
 function DimRow({ d, first, last, onMove }: { d: Dimension; first: boolean; last: boolean; onMove: (delta: number) => void }) {
   const { refresh } = useApp()
   const save = (patch: Partial<Dimension>) => api.updateDimension(d.id, patch).then(refresh)
-  const del = async () => {
-    if (confirm(`Delete “${d.name}”? Its scores go with it and every vector in the lens is rebuilt.`)) {
-      await api.deleteDimension(d.id); refresh()
-    }
-  }
+  const del = () => api.deleteDimension(d.id).then(refresh)
   return (
     <tr>
       <td className="order">
@@ -135,7 +129,7 @@ function DimRow({ d, first, last, onMove }: { d: Dimension; first: boolean; last
       <td><input type="checkbox" checked={d.wildcard} aria-label="Wild card" onChange={e => save({ wildcard: e.target.checked })} /></td>
       <td className="dim-actions">
         <button className="link" onClick={() => api.updateDimension(d.id, { archived: true }).then(refresh)} title="Keep scores, drop from the vector">archive</button>
-        <button className="link danger" onClick={del}>delete</button>
+        <ConfirmButton label="delete" question={`Delete “${d.name}” and its scores?`} onConfirm={del} />
       </td>
     </tr>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, ago, scoredIn, type Drift as DriftData, type Entry, type Kind, type Lens, type Orbit } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
 import { Fingerprint, KindMark, Radar, Sim, Spark } from './viz'
 
 // ---- a single entry as a row -------------------------------------------------------------------

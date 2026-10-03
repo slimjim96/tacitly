@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, ago, type EntryDetail, type Kind, type Lens, type Scores, type Status } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
 import { DimSlider, KindMark, Radar, Sim, type Series } from './viz'
 
 /** One entry: its text, its shape in every lens, other people's view of it, and how it has moved. */
 export function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
-  const { lenses, lens: active, refresh, open } = useApp()
+  const { lenses, lens: active, refresh, open, emit } = useApp()
+  const [confirming, setConfirming] = useState(false)
   const [detail, setDetail] = useState<EntryDetail | null>(null)
   const [lensId, setLensId] = useState(active?.id ?? lenses[0]?.id)
   const [scorer, setScorer] = useState('me')
@@ -40,6 +41,7 @@ export function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
     pending.current = { scorer, values: {} }
     if (Object.keys(values).length) {
       dirty.current = true
+      if (who === 'me' && Object.values(values).some(v => v !== null)) emit('entry.scored')
       api.score(id, values, who).then(d => { setDetail(d); setTheirs(d.perspectives) })
     }
   }
@@ -68,12 +70,12 @@ export function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
 
   async function patch(p: { body?: string; kind?: Kind; status?: Status; isTodo?: boolean }) {
     const e = await api.update(id, p)
+    if (p.kind && p.kind !== 'note' && detail?.entry.kind === 'note') emit('note.promoted')
     dirty.current = true
     setDetail(d => d && { ...d, entry: { ...e } })
   }
 
   async function remove() {
-    if (!confirm('Delete this entry and all its scores?')) return
     await api.remove(id)
     refresh(); onClose()
   }
@@ -169,7 +171,7 @@ export function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
                 </div>
                 <div>
                   {scorer !== 'me' && <p className="peer-note">Scoring as <b>{scorer}</b>. This is compared with your view and never changes your vectors.</p>}
-                  <div className="sliders">
+                  <div className="sliders" data-guide="drawer-sliders">
                     {lens.dimensions.map(d => <DimSlider key={d.id} dim={d} value={values[d.id]} onChange={v => setScore(d.id, v)} />)}
                   </div>
                 </div>
@@ -217,7 +219,13 @@ export function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
             </>}
 
             <footer className="drawer-foot">
-              <button className="link danger" onClick={remove}>delete entry</button>
+              {confirming ? (
+                <span className="row-confirm" role="alert">
+                  <span>Delete this entry and all its scores?</span>
+                  <button className="danger-btn" onClick={remove}>Delete</button>
+                  <button className="link" onClick={() => setConfirming(false)}>Cancel</button>
+                </span>
+              ) : <button className="link danger" onClick={() => setConfirming(true)}>delete entry</button>}
             </footer>
           </>
         )}

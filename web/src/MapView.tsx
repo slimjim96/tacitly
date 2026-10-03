@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type Dimension, type Lens, type LensMap, type MapPoint } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
 import { Fingerprint, Radar, scoreColour, themeColour } from './viz'
 
 const W = 1000, H = 600, M = { l: 70, r: 40, t: 30, b: 60 }

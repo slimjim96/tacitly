@@ -388,6 +388,7 @@ public sealed class Db(NpgsqlDataSource ds)
             UNION ALL SELECT 'score', count(*) FROM scores
             UNION ALL SELECT 'note', count(*) FROM entries WHERE kind = 'note' AND status = 'active' AND NOT is_todo
             UNION ALL SELECT 'todo', count(*) FROM entries WHERE kind = 'note' AND status = 'active' AND is_todo
+            UNION ALL SELECT 'claude', count(*) FROM entries WHERE source = 'claude'
             UNION ALL SELECT 'unscored', count(*) FROM entries e WHERE e.status = 'active' AND e.kind <> 'note'
                       AND NOT EXISTS (SELECT 1 FROM scores s WHERE s.entry_id = e.id)
             """);

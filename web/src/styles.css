@@ -12,6 +12,9 @@
   --lo: #3f78d8;   /* low pole */
   --hi: #e0901a;   /* high pole */
   --mid: #c9c7c1;  /* neutral */
+  --side: #efede7;
+  --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  --toast-accent: #8fe3bf;
   --radius: 12px;
   color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -31,6 +34,8 @@
     --lo: #6b9cff;
     --hi: #f0a83c;
     --mid: #3a3f4a;
+    --side: #13161c;
+    --toast-accent: #1d7a57;
     color-scheme: dark;
   }
 }
@@ -291,25 +296,3 @@ circle.pt { stroke: var(--panel); stroke-width: 1.5; }
 .dim-actions { white-space: nowrap; display: flex; gap: 10px; }
 .archived { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
-/* ---- 0004 quick capture ---------------------------------------------------------------- */
-.mark.note { width: 9px; height: 3px; border-radius: 2px; background: var(--muted); }
-.capture.quick { padding: 8px 14px 6px; }
-.quick-row { display: flex; align-items: flex-start; gap: 12px; }
-.capture.quick textarea { min-height: 0; padding: 8px 2px; resize: none; flex: 1; }
-.quick-hint { margin: 0; min-height: 1.2em; }
-.quick-hint.saved { color: var(--accent); }
-.todo-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: .82rem; color: var(--muted); white-space: nowrap; cursor: pointer; padding-top: 10px; }
-.drawer-head .todo-toggle { padding-top: 0; }
-.todo-toggle input, .tick { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; cursor: pointer; flex: none; }
-.placing-toggle { display: inline-block; margin: 6px 2px 0; }
-.note-row .row-main { align-items: flex-start; }
-.note-row .row-main > .mark.note { margin-top: .6em; }
-.note-row .row-main > .tick { margin-top: .15em; }
-.note-row .body { flex: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
-.note-row .row-meta { margin-left: 26px; }
-.note-actions { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; opacity: .55; transition: opacity .15s; }
-.note-row:hover .note-actions, .note-row:focus-within .note-actions { opacity: 1; }
-@media (hover: none) { .note-actions { opacity: 1; } }
-.done-toggle { display: inline-block; margin: 16px 0 8px; }
-.note-hint { border-top: 1px dashed var(--line); padding-top: 10px; }
-@media (max-width: 760px) { .quick-hint.saved { display: block; } }

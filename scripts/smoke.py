@@ -264,6 +264,7 @@ assert tool("capture", {"body": "[smoke] x", "kind": "note", "scores": {"Smoke t
 ok("MCP quick capture: note, todos, done; notes refuse scores")
 
 pulse = call("GET", "/pulse")
+assert pulse["claude"] >= 2, pulse  # two MCP captures above
 export = call("GET", "/export")
 assert any(l["id"] == L for l in export["lenses"])
 ok(f"pulse + export ({pulse})")

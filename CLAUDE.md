@@ -1,32 +1,28 @@
 # Working notes for Claude
 
-A self-hosted tool for the user (Jim). It is capture-first: quick notes and to-dos land in an Inbox with no setup. Beside that, he can define lenses (vector spaces) with bipolar dimensions and score thoughts, aspirations and patterns from -5 to +5, and Postgres/pgvector keeps the vectors and does the searching. Read `README.md` for the model and `docs/PRINCIPLES.md` before proposing features.
+A self-hosted tool for the user (Jim). Things come out of his head as entries in an Inbox, with no setup; a to-do is an entry with a checkbox. For the few that matter he can place entries on lenses (sets of scales he designed, each scored -5 to +5), and Postgres/pgvector keeps the shapes and does the searching.
+
+**Read first, in this order:** `docs/STORY.md` (what Tacitly is; it outranks everything else), `docs/GLOSSARY.md` (one word per idea, and its one name in code), `docs/PRINCIPLES.md`. The code and specs 0001 to 0005 still use older words (note, thought, aspiration, orbits, drift); the glossary maps them.
 
 ## Handoff (3 October 2026)
 
-- **State:** Two spec branches are pushed and unmerged. `spec/0004-quick-capture` adds notes, to-dos and the Inbox. `spec/0005-guided-layout` is built on top of it: the sidebar shell, the composer, row menus, undo toasts, Connect Claude, and the Guide (11 quests). Both pass the smoke test against Docker. The whole guide was played through in headless Chrome on a fresh install, at desktop and phone width, in light and dark mode.
-- **Direction:** Capture-first (decided 3 October 2026). Scoring is optional, later, and only for what earns it. The principles stay as written. The original vector concept may become a separate game or learning project later; keep it out of this repo.
+- **State:** Three branches are pushed and unmerged, each stacked on the one before: `spec/0004-quick-capture` (entries, to-dos, Inbox), `spec/0005-guided-layout` (sidebar shell, composer, Guide), and `docs/story-and-glossary` (the story and glossary). The code works and passes the smoke test, but it doesn't match the story yet: the story's table "Where today's app disagrees with this story" lists 15 seams.
 - **Next:**
-  1. Open PRs for 0004, then 0005 (CI runs on PRs only; `gh` isn't installed here). Merge in that order, set both specs to `shipped`, then deploy to the homelab and run the smoke test there.
-  2. Build specs 0001 evening journal, 0003 playbook, 0002 pick-up brief, in that order. Each new feature should add a quest to `QUESTS` in `web/src/guide.tsx` if it has a control worth teaching. 0003 adds `take`, which should also be a promotion target for notes.
+  1. Open PRs and merge in order: 0004, 0005, then story-and-glossary (`gh` isn't installed here; CI runs on PRs only). Deploy to the homelab and run the smoke test there.
+  2. Work the 15 seams through the story's workflow: story, then glossary, then a spec, then code. Start with seam 7 (Claude's MCP tools score as `me`, against principle 3), then seams 1 to 3 (one kind of entry). Re-check specs 0001 to 0003 against the story before building any of them.
 - **Watch out:**
-  - Guide quests complete through `emit(event)` from the component that does the action, plus an optional `check(pulse)` for credit from data. A quest's `target` is a `data-guide` attribute; keep those attributes when restyling.
-  - Notes are unscored by rule, enforced in `Mind` (`Refused` becomes a 400, or a tool error over MCP). A note never has a vector.
-  - `db/schema.sql` runs on every start and must stay idempotent. It carries the v1 and v2 upgrade paths.
-  - Vectors are built only by the triggers in `schema.sql`. Application code never writes a vector. The rule (`score_or_0 * sqrt(weight)`, active dimensions by position, `scorer = 'me'` only) is mirrored in `VectorSpace` in `Engine/Algorithms.cs`; change both together.
-  - `EntryCols` in `Db.cs` is read by position; `NearestAsync` reads the distance from the column after it. Adding an entry column shifts both.
-  - `src/Tacitly.Api/wwwroot/` is build output and is not committed. Run `npm run build` in `web/` to produce it.
-  - On Jim's Windows machine `python3` hits the Store stub; use `python` (3.11). The clone has `core.filemode false`. Long heredocs in the Bash tool can fail to parse here; write files with the editor instead.
+  - Use only glossary words in new specs, UI text and docs. A new word goes into the glossary first. Specs change before the code that depends on them, in their own commit, and "done when" is ticked by checks, not by the builder.
+  - Guide quests complete through `emit(event)` from the component that does the action, plus an optional `check(pulse)`. A quest's `target` is a `data-guide` attribute; keep those when restyling. Seam 9 re-sequences the quests.
+  - `db/schema.sql` runs on every start and must stay idempotent. Vectors are built only by its triggers; the rule is mirrored in `VectorSpace` in `Engine/Algorithms.cs`, so change both together. `EntryCols` in `Db.cs` is read by position.
+  - `src/Tacitly.Api/wwwroot/` is build output, not committed. On Jim's Windows machine use `python`, not `python3`; long heredocs in the Bash tool can fail to parse, so write files with the editor.
 
 ## Name
 
 The project is **Tacitly**, renamed from "InsideOut" (a Disney film title) on 2 October 2026. Namespace and project `Tacitly.Api`, config keys `Tacitly__*`, env vars `TACITLY_*`, header `X-Tacitly-Token`, database/user/image/compose name `tacitly`, localStorage keys `tacitly.*`, MCP `serverInfo.name` `tacitly`.
 
-## Open questions from the specs
+## Open questions
 
-- Store Claude's suggested scores as a `claude` perspective (proposed) or not at all?
-- Is a project a flagged aspiration (proposed) or its own kind of entry?
-- Should a project with no handoff for 14 days appear in "Still true?" (proposed: yes)
+Answered questions are logged in the story's Decisions table; open ones are listed at the end of the story. The three that used to sit here are settled there: Claude scores only as `claude`, a project is a property of any entry, and projects come back after 14 days.
 
 ## Commands
 
@@ -40,7 +36,7 @@ python3 scripts/smoke.py http://localhost:5080 [token]    # end-to-end; add --ke
 
 ## Conventions
 
-- New work starts as a spec in `docs/specs/` (template there). Branch `spec/NNNN-short-name`.
+- New work starts as a sentence in `docs/STORY.md`, then a spec in `docs/specs/` (template there) that cites it and uses glossary words. Branch `spec/NNNN-short-name`.
 - Every endpoint and trigger change gets a check in `scripts/smoke.py`.
 - All SQL lives in `Store/Db.cs` and `db/schema.sql`.
 - When you stop, replace the Handoff section above with a new three-line one: state, next, watch out.

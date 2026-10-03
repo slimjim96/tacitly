@@ -2,10 +2,12 @@ namespace Tacitly;
 
 public static class Kinds
 {
+    public const string Note = "note";             // quick capture: never scored, may be a to-do; promote it to place it
     public const string Thought = "thought";
     public const string Aspiration = "aspiration"; // a goal: exerts gravity on thoughts
     public const string Pattern = "pattern";       // a named shape you want to recognise ("burnout", "flow")
-    public static bool IsValid(string? k) => k is Thought or Aspiration or Pattern;
+    public static bool IsValid(string? k) => k is Note or Thought or Aspiration or Pattern;
+    public const string Expected = "kind must be note, thought, aspiration or pattern";
 }
 
 public static class Statuses
@@ -61,6 +63,8 @@ public sealed class Entry
     public double Weight { get; set; } = 1;
     /// <summary>Where it came from: app, shortcut, claude, slimfin, homelab...</summary>
     public string Source { get; set; } = "app";
+    /// <summary>Notes only: shows a checkbox; ticking it sets status to done.</summary>
+    public bool IsTodo { get; set; }
 }
 
 /// <summary>Scores keyed by dimension id. Absent = not scored.</summary>
@@ -73,10 +77,12 @@ public sealed record Scored(Entry Entry, double Similarity);
 public sealed record LensRequest(string? Name, string? Description, double? Gravity);
 public sealed record DimensionRequest(string? Name, string? LowLabel, string? HighLabel, double? Weight, bool? Wildcard = null, bool? Archived = null);
 public sealed record ReorderRequest(Guid[] DimensionIds);
-public sealed record CaptureRequest(string Kind, string Body, Dictionary<Guid, double?>? Scores, string? Source = null);
+/// <summary>Kind defaults to note. A to-do is a note with Todo = true, or a body starting with "[]".</summary>
+public sealed record CaptureRequest(string? Kind, string Body, Dictionary<Guid, double?>? Scores = null, string? Source = null, bool? Todo = null);
 /// <summary>For scripts, shortcuts and agents: scores keyed by "Lens/Dimension" name instead of id.</summary>
-public sealed record IngestRequest(string Body, string? Kind, string? Source, Dictionary<string, double?>? Scores);
-public sealed record UpdateRequest(string? Body, string? Status, string? Kind);
+/// <remarks>Kind defaults to thought, or note when it is a to-do. CreatedAt backdates an import.</remarks>
+public sealed record IngestRequest(string Body, string? Kind, string? Source, Dictionary<string, double?>? Scores, bool? Todo = null, DateTime? CreatedAt = null);
+public sealed record UpdateRequest(string? Body, string? Status, string? Kind, bool? IsTodo = null);
 public sealed record MatchRequest(Dictionary<Guid, double?> Values, string? Kind, int? K);
 
 // ---- responses --------------------------------------------------------------------
@@ -84,7 +90,10 @@ public sealed record MatchRequest(Dictionary<Guid, double?> Values, string? Kind
 public sealed record EntryDto(
     Guid Id, string Kind, string Body, string Status,
     DateTime CreatedAt, DateTime TouchedAt, double Weight, double Salience, string Source,
-    IReadOnlyDictionary<Guid, double> Scores);
+    IReadOnlyDictionary<Guid, double> Scores, bool IsTodo);
+
+/// <summary>The front door: open to-dos, then notes, newest first, plus to-dos ticked in the last day.</summary>
+public sealed record Inbox(IReadOnlyList<EntryDto> Todos, IReadOnlyList<EntryDto> Notes, IReadOnlyList<EntryDto> DoneRecently);
 
 public sealed record ScoredDto(EntryDto Entry, double Similarity);
 

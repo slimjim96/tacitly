@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Quick capture (spec 0004): notes and to-dos, the Inbox as the first tab, promote a note to place it, stale to-dos in "Still true?", the app works with no lenses, `/api/inbox`, MCP `note`/`todos`/`done`
 - Renamed from InsideOut to Tacitly: namespace and project folder, config keys (`Tacitly__*`), env vars (`TACITLY_*`), `X-Tacitly-Token` header, database/user/image name, localStorage keys, MCP server name
 
 ## 3.0.0

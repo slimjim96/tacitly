@@ -175,6 +175,60 @@ assert isinstance(call("GET", "/review"), list)
 call("POST", f"/entries/{t1['entry']['id']}/affirm", expect=204)
 ok("review queue + affirm")
 
+# --- 0004: quick capture --------------------------------------------------------------------
+unscored_before = call("GET", "/pulse")["unscored"]
+n1 = call("POST", "/entries", {"body": "[smoke] plumber's number is in the drawer"})
+assert n1["entry"]["kind"] == "note" and n1["entry"]["isTodo"] is False and n1["lenses"] == [], n1["entry"]
+n1 = n1["entry"]["id"]
+td = call("POST", "/entries", {"body": "[] [smoke] call the plumber"})["entry"]
+assert td["kind"] == "note" and td["isTodo"] is True and td["body"] == "[smoke] call the plumber", td
+td2 = call("POST", "/entries", {"body": "[smoke] renew passport", "todo": True})["entry"]
+assert td2["isTodo"] is True
+ok("a bare line saves as a note; '[]' or todo:true makes a to-do (marker stripped)")
+
+call("POST", "/entries", {"kind": "thought", "body": "[smoke] x", "todo": True}, expect=400)
+call("POST", "/entries", {"body": "[smoke] x", "scores": {E: 1}}, expect=400)
+call("PUT", f"/entries/{n1}/scores", {E: 1}, expect=400)
+call("PATCH", f"/entries/{t2['entry']['id']}", {"isTodo": True}, expect=400)
+ok("notes refuse scores; only notes can be to-dos")
+
+inbox = call("GET", "/inbox")
+assert [e["id"] for e in inbox["todos"]][:2] == [td2["id"], td["id"]], inbox["todos"][:2]
+assert n1 in [e["id"] for e in inbox["notes"]] and all(not e["isTodo"] for e in inbox["notes"])
+assert call("GET", "/pulse")["unscored"] == unscored_before, "notes must not count as unscored"
+assert all(u["kind"] != "note" for u in call("GET", f"/lenses/{L}/drift")["unscored"])
+assert any(e["id"] == n1 for e in call("GET", "/entries?q=" + urllib.parse.quote("plumber's number")))
+ok("inbox: open to-dos first, then notes; notes stay out of unscored and drift; search finds them")
+
+call("PATCH", f"/entries/{td['id']}", {"status": "done"})
+inbox = call("GET", "/inbox")
+assert td["id"] not in [e["id"] for e in inbox["todos"]] and td["id"] in [e["id"] for e in inbox["doneRecently"]]
+call("PATCH", f"/entries/{td['id']}", {"status": "active"})
+assert td["id"] in [e["id"] for e in call("GET", "/inbox")["todos"]]
+call("PATCH", f"/entries/{n1}", {"isTodo": True})
+assert n1 in [e["id"] for e in call("GET", "/inbox")["todos"]]
+call("PATCH", f"/entries/{n1}", {"isTodo": False})
+ok("tick, untick, and turn a note into a to-do and back")
+
+promoted = call("PATCH", f"/entries/{td2['id']}", {"kind": "thought"})
+assert promoted["kind"] == "thought" and promoted["isTodo"] is False and promoted["createdAt"] == td2["createdAt"]
+assert td2["id"] not in [e["id"] for e in call("GET", "/inbox")["todos"]]
+assert any(u["id"] == td2["id"] for u in call("GET", f"/lenses/{L}/drift")["unscored"])
+call("PUT", f"/entries/{td2['id']}/scores", {E: 2})
+call("PATCH", f"/entries/{td2['id']}", {"kind": "note"}, expect=400)
+ok("promote a note to a thought: keeps its date, leaves the inbox, can be scored, can't go back while scored")
+
+old = call("POST", "/ingest", {"body": "[smoke] fix the gate", "todo": True, "source": "shortcut",
+                               "createdAt": "2020-01-01T09:00:00Z"})["entry"]
+assert old["kind"] == "note" and old["isTodo"] and old["createdAt"].startswith("2020-01-01"), old
+quiet = call("POST", "/ingest", {"body": "[smoke] old note", "kind": "note", "createdAt": "2020-01-01T09:00:00Z"})["entry"]
+call("POST", "/ingest", {"body": "[smoke] x", "createdAt": "2999-01-01T00:00:00Z"}, expect=400)
+review = [e["id"] for e in call("GET", "/review?limit=200")]
+assert old["id"] in review and quiet["id"] not in review, review
+call("POST", f"/entries/{old['id']}/affirm", expect=204)
+assert old["id"] not in [e["id"] for e in call("GET", "/review?limit=200")]
+ok("stale to-do (14+ days) comes back in 'still true?'; old plain notes don't; affirming resets it")
+
 MCP = BASE[:-4] + "/mcp"
 def rpc(method, params=None, id=1):
     body = {"jsonrpc": "2.0", "method": method, **({"id": id} if id is not None else {}), **({"params": params} if params else {})}
@@ -194,6 +248,20 @@ res = rpc("tools/call", {"name": "match", "arguments": {"lens": "smoke test", "v
 assert json.loads(res["content"][0]["text"])[0]["entry"]["id"] == burnout
 assert rpc("tools/call", {"name": "orbits", "arguments": {"lens": "nope"}})["result"]["isError"] is True
 ok(f"MCP endpoint: initialize, {len(tools)} tools, capture, match, tool errors")
+
+def tool(name, args):
+    res = rpc("tools/call", {"name": name, "arguments": args})["result"]
+    return res["isError"], (res["content"][0]["text"] if res["isError"] else json.loads(res["content"][0]["text"]))
+err, made = tool("note", {"text": "[smoke] book the dentist", "todo": True})
+assert not err and made["entry"]["isTodo"] and made["entry"]["source"] == "claude", made
+mid = made["entry"]["id"]
+err, open_ = tool("todos", {})
+assert not err and mid in [t["id"] for t in open_]
+err, ticked = tool("done", {"entry_id": mid})
+assert not err and ticked["status"] == "done"
+assert tool("done", {"entry_id": n1})[0] is True, "a plain note can't be ticked"
+assert tool("capture", {"body": "[smoke] x", "kind": "note", "scores": {"Smoke test/Pull": 1}})[0] is True
+ok("MCP quick capture: note, todos, done; notes refuse scores")
 
 pulse = call("GET", "/pulse")
 export = call("GET", "/export")

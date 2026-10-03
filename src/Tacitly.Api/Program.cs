@@ -27,11 +27,11 @@ for (int attempt = 1; ; attempt++)
     }
 }
 
-// Constraint violations (bad ids, out-of-range values) come back as 400s, not 500s.
+// Constraint violations (bad ids, out-of-range values) and refused requests come back as 400s, not 500s.
 app.Use(async (ctx, next) =>
 {
     try { await next(); }
-    catch (DbException ex) when (!ctx.Response.HasStarted)
+    catch (Exception ex) when (ex is DbException or Refused && !ctx.Response.HasStarted)
     {
         ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
         await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
@@ -146,8 +146,7 @@ api.MapDelete("/dimensions/{id:guid}", async (Guid id, Db db, CancellationToken 
 
 api.MapPost("/entries", async (CaptureRequest req, Mind m, Db db, CancellationToken ct) =>
 {
-    if (!Kinds.IsValid(req.Kind)) return Bad("kind must be thought, aspiration or pattern");
-    if (string.IsNullOrWhiteSpace(req.Body) || req.Body.Length > 4000) return Bad("body must be 1-4000 characters");
+    req = Mind.Normalize(req, Kinds.Note);   // quick capture: no kind means a note
     if (await ValidateScores(req.Scores, db, ct) is { } err) return Bad(err);
     return Results.Ok(await m.CaptureAsync(req, ct));
 });
@@ -161,7 +160,7 @@ api.MapGet("/entries/{id:guid}", async (Guid id, Mind m, CancellationToken ct) =
 api.MapPatch("/entries/{id:guid}", async (Guid id, UpdateRequest req, Mind m, CancellationToken ct) =>
 {
     if (req.Status is not null && !Statuses.IsValid(req.Status)) return Bad("status must be active, done or released");
-    if (req.Kind is not null && !Kinds.IsValid(req.Kind)) return Bad("kind must be thought, aspiration or pattern");
+    if (req.Kind is not null && !Kinds.IsValid(req.Kind)) return Bad(Kinds.Expected);
     return await m.UpdateAsync(id, req, ct) is { } e ? Results.Ok(e) : Results.NotFound();
 });
 
@@ -189,14 +188,18 @@ api.MapPost("/entries/{id:guid}/affirm", async (Guid id, Mind m, CancellationTok
 // For shortcuts, scripts and other systems: scores by "Lens/Dimension" name.
 api.MapPost("/ingest", async (IngestRequest req, Mind m, CancellationToken ct) =>
 {
-    var kind = string.IsNullOrWhiteSpace(req.Kind) ? Kinds.Thought : req.Kind.Trim().ToLowerInvariant();
-    if (!Kinds.IsValid(kind)) return Bad("kind must be thought, aspiration or pattern");
-    if (string.IsNullOrWhiteSpace(req.Body) || req.Body.Length > 4000) return Bad("body must be 1-4000 characters");
+    if (req.CreatedAt > DateTime.UtcNow.AddMinutes(5)) return Bad("createdAt can't be in the future");
     var (ids, err) = await m.ResolveNamesAsync(req.Scores, ct);
     if (err is not null) return Bad(err);
     if (ids.Values.Any(v => v is < Scale.Min or > Scale.Max)) return Bad("scores must be between -5 and 5");
-    return Results.Ok(await m.CaptureAsync(new CaptureRequest(kind, req.Body, ids, req.Source ?? "api"), ct));
+    // The default kind stays thought so existing shortcuts keep working; a to-do is always a note.
+    var cap = Mind.Normalize(new CaptureRequest(req.Kind, req.Body ?? "", ids, req.Source ?? "api", req.Todo), Kinds.Thought);
+    return Results.Ok(await m.CaptureAsync(cap, ct, req.CreatedAt));
 });
+
+// ---- quick capture -----------------------------------------------------------------------------
+
+api.MapGet("/inbox", (int? limit, Mind m, CancellationToken ct) => m.InboxAsync(Math.Clamp(limit ?? 300, 1, 1000), ct));
 
 // ---- per-lens views ----------------------------------------------------------------------------
 

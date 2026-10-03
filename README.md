@@ -1,6 +1,16 @@
 # Tacitly
 
-A self-hosted place for thoughts and aspirations where **you** write the vectors.
+A self-hosted place for quick notes and to-dos, and for thoughts and aspirations where **you** write the vectors.
+
+## Quick capture
+
+The Inbox is the front door. Type a line and press Enter: it's a **note**. Start it with `[]` (or tick *to-do*) and it's a **to-do** with a checkbox. There's no kind to pick, nothing to score, and no lens needed. Open to-dos sit at the top, notes below by day, newest first.
+
+A note can become more. *Make thought* or *make aspiration* moves it into the lens views, unscored and ready to place; that's the only way into the vectors. Until then, notes stay out of the unscored count, drift, themes, orbits and the map. Plain notes fade quietly; a to-do left open for 14 days comes back in *Still true?*.
+
+Prefer to score as you capture? *Capture with a shape* opens the full capture panel.
+
+## You write the vectors
 
 There's no embedding model. You design the vector spaces yourself, score each entry along axes you chose, and Postgres (pgvector) stores and searches the result. Every similarity, cluster and orbit traces back to a judgement you made, on a dimension you named.
 
@@ -74,9 +84,9 @@ curl -X POST https://your-host/api/ingest \
   -d '{"body":"SlimFin: drawdown hit 4%","source":"slimfin","scores":{"Feel/Fear":3,"Feel/Energy":-2}}'
 ```
 
-An iOS Shortcut is the same call: *Ask for Input* → *Get Contents of URL* (POST, JSON body `{"body": <input>, "source": "shortcut"}`).
+An iOS Shortcut is the same call: *Ask for Input* → *Get Contents of URL* (POST, JSON body `{"body": <input>, "source": "shortcut"}`). Add `"todo": true`, or start the text with `[]`, to drop a to-do in the Inbox; `"kind": "note"` drops a plain note. Without either, ingest keeps its old default of a thought. `createdAt` backdates an import.
 
-**Claude (MCP).** `/mcp` is a Model Context Protocol server (Streamable HTTP, tools only). Tools: `list_lenses`, `capture`, `search`, `match`, `orbits`, `review_queue`, `get_entry`, `score`.
+**Claude (MCP).** `/mcp` is a Model Context Protocol server (Streamable HTTP, tools only). Tools: `note`, `todos`, `done` for the Inbox, and `list_lenses`, `capture`, `search`, `match`, `orbits`, `review_queue`, `get_entry`, `score` for the lenses.
 
 ```bash
 claude mcp add --transport http tacitly https://your-host/mcp --header "Authorization: Bearer $TACITLY_TOKEN"
@@ -135,13 +145,14 @@ The vector column has no fixed size, because each lens has its own dimension cou
 | POST | `/api/lenses/{id}/dimensions` | `{name, lowLabel, highLabel, weight (0-5), wildcard}` |
 | PUT | `/api/lenses/{id}/order` | `{dimensionIds: [...]}` in the new order |
 | PATCH/DELETE | `/api/dimensions/{id}` | PATCH also takes `wildcard` and `archived` |
-| POST | `/api/entries` | `{kind, body, scores: {dimensionId: value}}` → entry + where it landed in each lens |
+| GET | `/api/inbox` | `{todos, notes, doneRecently}`: open to-dos, notes newest first, to-dos ticked in the last day |
+| POST | `/api/entries` | `{body, kind?, todo?, scores?}` → entry + where it landed. No kind = note; `[]` or `todo` = to-do; notes refuse scores |
 | GET | `/api/entries?kind=&status=&q=&unscoredIn=&limit=` | stream / text search |
-| GET/PATCH/DELETE | `/api/entries/{id}` | detail (with gravity and neighbours per lens) / `{body, status, kind}` |
+| GET/PATCH/DELETE | `/api/entries/{id}` | detail (with gravity and neighbours per lens) / `{body, status, kind, isTodo}`. Note → other kind promotes it |
 | PUT | `/api/entries/{id}/scores?scorer=` | `{dimensionId: value \| null}`; null clears. `scorer` defaults to `me` |
 | GET | `/api/scorers` | other perspectives in use |
 | GET / POST | `/api/review` · `/api/entries/{id}/affirm` | the *still true?* queue / "still true" |
-| POST | `/api/ingest` | `{body, kind?, source?, scores: {"Lens/Dimension": value}}` |
+| POST | `/api/ingest` | `{body, kind?, todo?, source?, createdAt?, scores: {"Lens/Dimension": value}}` |
 | POST | `/api/lenses/starter/shadow` | create the Shadow lens |
 | POST | `/mcp` | MCP server (JSON-RPC over HTTP) |
 | POST | `/api/lenses/{id}/match` | `{values: {dimensionId: value}, kind?, k?}` → nearest by shape |

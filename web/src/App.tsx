@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { activeLens, api, type Dimension, type EntryDetail, type Kind, type Lens, type Pulse, type ScorePatch, type Scores } from './api'
 import { DimSlider, KindMark, Radar, Sim } from './viz'
 import { Drift, Orbits, Review, Stream } from './Views'
@@ -6,9 +6,11 @@ import { Shape } from './Shape'
 import { MapView } from './MapView'
 import { Lenses } from './Lenses'
 import { Drawer } from './Drawer'
+import { Inbox } from './Inbox'
 
-type Tab = 'orbits' | 'stream' | 'shape' | 'map' | 'drift' | 'review' | 'lenses'
+type Tab = 'inbox' | 'orbits' | 'stream' | 'shape' | 'map' | 'drift' | 'review' | 'lenses'
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'inbox', label: 'Inbox' },
   { id: 'orbits', label: 'Orbits' },
   { id: 'map', label: 'Map' },
   { id: 'shape', label: 'Shape' },
@@ -17,6 +19,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'review', label: 'Still true?' },
   { id: 'lenses', label: 'Lenses' },
 ]
+/** Tabs that look at one lens; with no lens yet they offer to create one. */
+const LENS_TABS: Tab[] = ['orbits', 'map', 'shape', 'drift']
 
 interface Ctx {
   lenses: Lens[]        // archived dimensions removed
@@ -33,7 +37,7 @@ const LENS_KEY = 'tacitly.lens'
 const remembered = () => { try { return localStorage.getItem(LENS_KEY) } catch { return null } }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>(() => (location.hash.slice(1) as Tab) || 'orbits')
+  const [tab, setTab] = useState<Tab>(() => (location.hash.slice(1) as Tab) || 'inbox')
   const [lenses, setLenses] = useState<Lens[] | null>(null)
   const [lensId, setLensId] = useState<string | null>(remembered)
   const [pulse, setPulse] = useState<Pulse | null>(null)
@@ -41,6 +45,7 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reviewCount, setReviewCount] = useState(0)
+  const [placing, setPlacing] = useState(false)
 
   const refresh = useCallback(() => setVersion(v => v + 1), [])
 
@@ -73,52 +78,59 @@ export default function App() {
           </div>
           {pulse && (
             <p className="pulse">
-              <b>{pulse.aspirations}</b> aspirations · <b>{pulse.thoughts}</b> thoughts · <b>{pulse.patterns}</b> patterns
+              <button className="link plain" onClick={() => setTab('inbox')}><b>{pulse.todos}</b> to do · <b>{pulse.notes}</b> notes</button>
+              {lenses.length > 0 && <> · <b>{pulse.aspirations}</b> aspirations · <b>{pulse.thoughts}</b> thoughts · <b>{pulse.patterns}</b> patterns</>}
               {pulse.unscored > 0 && <> · <button className="link" onClick={() => setTab('drift')}><b>{pulse.unscored}</b> unscored</button></>}
             </p>
           )}
         </header>
 
-        {lenses.length === 0 ? <FirstRun /> : (
-          <>
-            <nav className="lens-bar" aria-label="Lens">
-              <span className="muted small">Lens</span>
-              {lenses.map(l => (
-                <button key={l.id} className={`chip ${l.id === lens?.id ? 'on' : ''}`} onClick={() => setLensId(l.id)}
-                  title={l.description}>
-                  {l.name} <span className="muted">{l.dimensions.length}d</span>
-                </button>
-              ))}
-              <button className="chip ghost" onClick={() => setTab('lenses')}>+ lens</button>
-            </nav>
+        <QuickCapture />
+        {lenses.length > 0 && (placing
+          ? <><Capture /><button className="link small placing-toggle" onClick={() => setPlacing(false)}>back to quick capture</button></>
+          : <button className="link small placing-toggle" onClick={() => setPlacing(true)}
+              title="Capture a thought, aspiration or pattern and score it straight away">capture with a shape</button>)}
 
-            <Capture />
+        {error && <p className="error" onClick={() => setError(null)}>{error} <span className="muted">(dismiss)</span></p>}
 
-            {error && <p className="error" onClick={() => setError(null)}>{error} <span className="muted">(dismiss)</span></p>}
+        <nav className="tabs" role="tablist">
+          {TABS.map(t => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+              {t.label}{t.id === 'review' && reviewCount > 0 && <span className="badge">{reviewCount}</span>}
+            </button>
+          ))}
+        </nav>
 
-            <nav className="tabs" role="tablist">
-              {TABS.map(t => (
-                <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-                  {t.label}{t.id === 'review' && reviewCount > 0 && <span className="badge">{reviewCount}</span>}
-                </button>
-              ))}
-            </nav>
-
-            <main>
-              {lens && lens.dimensions.length === 0 && tab !== 'lenses' && tab !== 'stream' && tab !== 'review'
-                ? <p className="empty">“{lens.name}” has no dimensions yet. <button className="link accent" onClick={() => setTab('lenses')}>Add some</button>.</p>
-                : <>
-                    {tab === 'orbits' && lens && <Orbits lens={lens} />}
-                    {tab === 'map' && lens && <MapView lens={lens} />}
-                    {tab === 'shape' && lens && <Shape lens={lens} />}
-                    {tab === 'stream' && <Stream />}
-                    {tab === 'drift' && lens && <Drift lens={lens} />}
-                    {tab === 'review' && <Review />}
-                    {tab === 'lenses' && <Lenses onSelect={setLensId} />}
-                  </>}
-            </main>
-          </>
+        {lenses.length > 0 && tab !== 'inbox' && tab !== 'lenses' && (
+          <nav className="lens-bar" aria-label="Lens">
+            <span className="muted small">Lens</span>
+            {lenses.map(l => (
+              <button key={l.id} className={`chip ${l.id === lens?.id ? 'on' : ''}`} onClick={() => setLensId(l.id)}
+                title={l.description}>
+                {l.name} <span className="muted">{l.dimensions.length}d</span>
+              </button>
+            ))}
+            <button className="chip ghost" onClick={() => setTab('lenses')}>+ lens</button>
+          </nav>
         )}
+
+        <main>
+          {tab === 'inbox' && <Inbox />}
+          {tab === 'stream' && <Stream />}
+          {tab === 'review' && <Review />}
+          {tab === 'lenses' && (lenses.length === 0 ? <FirstRun /> : <Lenses onSelect={setLensId} />)}
+          {LENS_TABS.includes(tab) && (
+            !lens ? <FirstRun />
+            : lens.dimensions.length === 0
+              ? <p className="empty">“{lens.name}” has no dimensions yet. <button className="link accent" onClick={() => setTab('lenses')}>Add some</button>.</p>
+              : <>
+                  {tab === 'orbits' && <Orbits lens={lens} />}
+                  {tab === 'map' && <MapView lens={lens} />}
+                  {tab === 'shape' && <Shape lens={lens} />}
+                  {tab === 'drift' && <Drift lens={lens} />}
+                </>
+          )}
+        </main>
 
         {openId && <Drawer key={openId} id={openId} onClose={() => setOpenId(null)} />}
       </div>
@@ -131,7 +143,8 @@ function FirstRun() {
   const [name, setName] = useState('')
   return (
     <section className="first-run">
-      <h2>Define how you want to see things</h2>
+      <h2>Lenses are optional</h2>
+      <p className="muted">Notes and to-dos need nothing set up. A lens is for the few things you want to place and compare.</p>
       <p>
         A <b>lens</b> is a vector space you design. Each <b>dimension</b> is an axis with a label at both ends
         (draining ↔ energising). You score thoughts and aspirations along those axes; that score <i>is</i> the vector.
@@ -147,7 +160,58 @@ function FirstRun() {
   )
 }
 
-// ---- capture: write the text, then place it in the space -----------------------------------------------
+// ---- quick capture: a line and Enter. No kind, no sliders. ------------------------------------------------
+
+function QuickCapture() {
+  const { refresh } = useApp()
+  const [body, setBody] = useState('')
+  const [todo, setTodo] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState<string | null>(null)
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const marked = /^\[\s?\]/.test(body.trim())   // the server strips it and makes a to-do
+
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(null), 1800)
+    return () => clearTimeout(t)
+  }, [saved])
+
+  async function save() {
+    if (!body.trim() || busy) return
+    setBusy(true)
+    try {
+      const d = await api.note(body, todo)
+      setBody(''); setTodo(false)
+      setSaved(d.entry.isTodo ? 'To-do saved' : 'Saved')
+      refresh()
+      ref.current?.focus()
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <section className="capture quick">
+      <div className="quick-row">
+        <label className="todo-toggle" title="Make it a to-do (or start the line with [])">
+          <input type="checkbox" checked={todo || marked} disabled={marked} onChange={e => setTodo(e.target.checked)} />
+          to-do
+        </label>
+        <textarea ref={ref} value={body} autoFocus aria-label="Quick note"
+          rows={Math.min(6, body.split('\n').length)}
+          placeholder="Note it down…"
+          onChange={e => setBody(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); save() }
+          }} />
+      </div>
+      <p className={`hint quick-hint ${saved ? 'saved' : ''}`} aria-live="polite">
+        {saved ?? 'Enter to save · Shift+Enter for a new line · start with [] for a to-do'}
+      </p>
+    </section>
+  )
+}
+
+// ---- capture with a shape: write the text, then place it in the space -----------------------------------
 
 /** One dimension from the wild-card pool, outside the current lens, offered at random. */
 function pickWild(lenses: Lens[], current: Lens | null, not?: string): (Dimension & { lensName: string }) | null {
@@ -157,7 +221,7 @@ function pickWild(lenses: Lens[], current: Lens | null, not?: string): (Dimensio
 
 function Capture() {
   const { lens, lenses, refresh, open } = useApp()
-  const [kind, setKind] = useState<Kind>('thought')
+  const [kind, setKind] = useState<Exclude<Kind, 'note'>>('thought')
   const [body, setBody] = useState('')
   const [scores, setScores] = useState<Scores>({})
   const [showScore, setShowScore] = useState(true)
@@ -189,7 +253,7 @@ function Capture() {
     <section className="capture">
       <div className="capture-top">
         <div className="seg" role="radiogroup" aria-label="Kind">
-          {(['thought', 'aspiration', 'pattern'] as Kind[]).map(k => (
+          {(['thought', 'aspiration', 'pattern'] as const).map(k => (
             <button key={k} role="radio" aria-checked={kind === k} className={kind === k ? `on ${k}` : ''} onClick={() => setKind(k)}>
               {k[0].toUpperCase() + k.slice(1)}
             </button>

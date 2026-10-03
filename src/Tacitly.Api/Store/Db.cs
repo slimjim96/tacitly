@@ -12,7 +12,7 @@ namespace Tacitly.Store;
 /// </summary>
 public sealed class Db(NpgsqlDataSource ds)
 {
-    private const string EntryCols = "e.id, e.kind, e.body, e.status, e.created_at, e.touched_at, e.weight, e.source";
+    private const string EntryCols = "e.id, e.kind, e.body, e.status, e.created_at, e.touched_at, e.weight, e.source, e.is_todo";
     private const string DimCols = "id, lens_id, name, low_label, high_label, weight, position, wildcard, archived_at";
 
     public async Task MigrateAsync(CancellationToken ct)
@@ -135,8 +135,8 @@ public sealed class Db(NpgsqlDataSource ds)
     public async Task InsertEntryAsync(Entry e, CancellationToken ct)
     {
         await using var cmd = ds.CreateCommand("""
-            INSERT INTO entries (id, kind, body, status, created_at, touched_at, weight, source)
-            VALUES (@id, @kind, @body, @status, @created, @touched, @weight, @source)
+            INSERT INTO entries (id, kind, body, status, created_at, touched_at, weight, source, is_todo)
+            VALUES (@id, @kind, @body, @status, @created, @touched, @weight, @source, @todo)
             """);
         BindEntry(cmd, e);
         await cmd.ExecuteNonQueryAsync(ct);
@@ -146,7 +146,7 @@ public sealed class Db(NpgsqlDataSource ds)
     {
         await using var cmd = ds.CreateCommand("""
             UPDATE entries SET kind = @kind, body = @body, status = @status, created_at = @created,
-                               touched_at = @touched, weight = @weight, source = @source
+                               touched_at = @touched, weight = @weight, source = @source, is_todo = @todo
             WHERE id = @id
             """);
         BindEntry(cmd, e);
@@ -163,7 +163,8 @@ public sealed class Db(NpgsqlDataSource ds)
 
     public Task<bool> DeleteEntryAsync(Guid id, CancellationToken ct) => DeleteById("entries", id, ct);
 
-    /// <summary>Newest first. <paramref name="unscoredIn"/> limits to entries with no scores in that lens.</summary>
+    /// <summary>Newest first. <paramref name="unscoredIn"/> limits to entries with no scores in that lens;
+    /// notes are never placed in a lens, so they are left out of it.</summary>
     public async Task<List<Entry>> ListEntriesAsync(string? kind, string? status, string? text, Guid? unscoredIn, int limit, CancellationToken ct)
     {
         var sql = new StringBuilder($"SELECT {EntryCols} FROM entries e WHERE true");
@@ -172,6 +173,7 @@ public sealed class Db(NpgsqlDataSource ds)
         if (!string.IsNullOrWhiteSpace(text)) sql.Append(" AND e.body ILIKE @text");
         if (unscoredIn is not null)
             sql.Append(" AND NOT EXISTS (SELECT 1 FROM entry_vectors ev WHERE ev.entry_id = e.id AND ev.lens_id = @lens)");
+        if (unscoredIn is not null) sql.Append(" AND e.kind <> 'note'");
         sql.Append(" ORDER BY e.created_at DESC LIMIT @limit");
 
         await using var cmd = ds.CreateCommand(sql.ToString());
@@ -369,7 +371,7 @@ public sealed class Db(NpgsqlDataSource ds)
 
         var list = new List<(Entry, double)>();
         await using var r = await cmd.ExecuteReaderAsync(ct);
-        while (await r.ReadAsync(ct)) list.Add((ReadEntry(r), r.GetDouble(8)));
+        while (await r.ReadAsync(ct)) list.Add((ReadEntry(r), r.GetDouble(9)));
         return list;
     }
 
@@ -384,7 +386,9 @@ public sealed class Db(NpgsqlDataSource ds)
             UNION ALL SELECT 'lens', count(*) FROM lenses
             UNION ALL SELECT 'dimension', count(*) FROM dimensions
             UNION ALL SELECT 'score', count(*) FROM scores
-            UNION ALL SELECT 'unscored', count(*) FROM entries e WHERE e.status = 'active'
+            UNION ALL SELECT 'note', count(*) FROM entries WHERE kind = 'note' AND status = 'active' AND NOT is_todo
+            UNION ALL SELECT 'todo', count(*) FROM entries WHERE kind = 'note' AND status = 'active' AND is_todo
+            UNION ALL SELECT 'unscored', count(*) FROM entries e WHERE e.status = 'active' AND e.kind <> 'note'
                       AND NOT EXISTS (SELECT 1 FROM scores s WHERE s.entry_id = e.id)
             """);
         var result = new Dictionary<string, long>();
@@ -416,6 +420,7 @@ public sealed class Db(NpgsqlDataSource ds)
         cmd.Parameters.AddWithValue("touched", Utc(e.TouchedAt));
         cmd.Parameters.AddWithValue("weight", e.Weight);
         cmd.Parameters.AddWithValue("source", e.Source);
+        cmd.Parameters.AddWithValue("todo", e.IsTodo);
     }
 
     private static void BindDimension(NpgsqlCommand cmd, Dimension d)
@@ -432,7 +437,7 @@ public sealed class Db(NpgsqlDataSource ds)
     private static Entry ReadEntry(NpgsqlDataReader r) => new()
     {
         Id = r.GetGuid(0), Kind = r.GetString(1), Body = r.GetString(2), Status = r.GetString(3),
-        CreatedAt = r.GetFieldValue<DateTime>(4), TouchedAt = r.GetFieldValue<DateTime>(5), Weight = r.GetDouble(6), Source = r.GetString(7),
+        CreatedAt = r.GetFieldValue<DateTime>(4), TouchedAt = r.GetFieldValue<DateTime>(5), Weight = r.GetDouble(6), Source = r.GetString(7), IsTodo = r.GetBoolean(8),
     };
 
     private static Dimension ReadDimension(NpgsqlDataReader r) => new()

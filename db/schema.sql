@@ -59,7 +59,10 @@ ALTER TABLE entries DROP COLUMN IF EXISTS theme_id;
 DROP TABLE IF EXISTS themes;
 DROP TABLE IF EXISTS io_meta;
 ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_kind_check;
-ALTER TABLE entries ADD CONSTRAINT entries_kind_check CHECK (kind IN ('thought', 'aspiration', 'pattern'));
+ALTER TABLE entries ADD CONSTRAINT entries_kind_check CHECK (kind IN ('note', 'thought', 'aspiration', 'pattern'));
+
+-- Spec 0004: quick capture. A note is unscored by design; any note can be a to-do (done = status 'done').
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS is_todo boolean NOT NULL DEFAULT false;
 ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_status_check;
 ALTER TABLE entries ADD CONSTRAINT entries_status_check CHECK (status IN ('active', 'done', 'released'));
 

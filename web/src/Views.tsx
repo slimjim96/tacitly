@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, ago, scoredIn, type Drift as DriftData, type Entry, type Kind, type Lens, type Orbit } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
 import { Fingerprint, KindMark, Radar, Sim, Spark } from './viz'
 
 // ---- a single entry as a row -------------------------------------------------------------------
@@ -16,14 +16,15 @@ export function EntryRow({ entry, lens, similarity, extra, onHover }: {
       <button className="row-main" onClick={() => open(entry.id)}>
         <KindMark kind={entry.kind} />
         <span className="body">{entry.body}</span>
-        {lens && <Fingerprint dims={lens.dimensions} scores={entry.scores} />}
+        {lens && entry.kind !== 'note' && <Fingerprint dims={lens.dimensions} scores={entry.scores} />}
         {similarity !== undefined && <Sim v={similarity} />}
       </button>
       <div className="row-meta">
         <span>{ago(entry.createdAt)}</span>
         {entry.status !== 'active' && <span className="tag">{entry.status}</span>}
         {entry.source !== 'app' && <span className="tag">via {entry.source}</span>}
-        {lens && <span>{scoredIn(entry, lens)}/{lens.dimensions.length} scored</span>}
+        {entry.isTodo && <span className="tag">to-do</span>}
+        {lens && entry.kind !== 'note' && <span>{scoredIn(entry, lens)}/{lens.dimensions.length} scored</span>}
         {extra}
       </div>
     </li>
@@ -101,7 +102,7 @@ export function Stream() {
   return (
     <>
       <div className="filters">
-        {[undefined, 'thought', 'aspiration', 'pattern'].map(k => (
+        {[undefined, 'note', 'thought', 'aspiration', 'pattern'].map(k => (
           <button key={k ?? 'all'} className={kind === k ? 'chip on' : 'chip'} onClick={() => setKind(k as Kind | undefined)}>
             {k ? `${k}s` : 'all'}
           </button>
@@ -156,13 +157,14 @@ export function Review() {
   const done = (id: string) => setItems(xs => xs?.filter(x => x.id !== id) ?? null)
   const affirm = (id: string) => api.affirm(id).then(() => { done(id); refresh() })
   const release = (id: string) => api.update(id, { status: 'released' }).then(() => { done(id); refresh() })
+  const tick = (id: string) => api.update(id, { status: 'done' }).then(() => { done(id); refresh() })
 
   if (!items) return <p className="muted">Loading…</p>
   return (
     <>
       <p className="muted small">
         Entries that have faded (salience under half). Say whether each is still true: affirming resets its clock,
-        rescoring records the new shape in its history, releasing lets it go.
+        rescoring records the new shape in its history, releasing lets it go. To-dos left open for two weeks come back here too.
       </p>
       {items.length === 0 ? <p className="empty">Nothing has faded yet. Come back in a few weeks.</p> :
         <ul className="list">
@@ -171,7 +173,9 @@ export function Review() {
               extra={<>
                 <span>salience {e.salience.toFixed(2)} · last touched {ago(e.touchedAt)}</span>
                 <button className="link accent" onClick={() => affirm(e.id)}>still true</button>
-                <button className="link" onClick={() => open(e.id)}>rescore</button>
+                {e.isTodo
+                  ? <button className="link" onClick={() => tick(e.id)}>done</button>
+                  : <button className="link" onClick={() => open(e.id)}>rescore</button>}
                 <button className="link" onClick={() => release(e.id)}>release</button>
               </>} />
           ))}

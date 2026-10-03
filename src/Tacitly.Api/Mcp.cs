@@ -23,11 +23,20 @@ public static class McpEndpoint
     private static JsonArray Tools() =>
     [
         Tool("list_lenses", "List the user's lenses (vector spaces) with their dimensions, pole labels (-5 / +5) and weights. Call this before scoring.", new JsonObject()),
+        Tool("note", "Drop a quick note or to-do into the user's inbox. Notes are never scored. Use this for anything the user wants to remember or do; use capture only for a thought, aspiration or pattern worth placing in a lens.",
+            new JsonObject
+            {
+                ["text"] = new JsonObject { ["type"] = "string" },
+                ["todo"] = new JsonObject { ["type"] = "boolean", ["description"] = "true makes it a to-do with a checkbox" },
+            }, "text"),
+        Tool("todos", "The user's open to-dos, newest first.", new JsonObject()),
+        Tool("done", "Tick a to-do done. Only to-dos can be ticked.",
+            new JsonObject { ["entry_id"] = new JsonObject { ["type"] = "string" } }, "entry_id"),
         Tool("capture", "Capture a thought, aspiration or pattern, optionally scoring it. Returns where it landed: the aspiration it orbits and its nearest neighbours per lens.",
             new JsonObject
             {
                 ["body"] = new JsonObject { ["type"] = "string" },
-                ["kind"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("thought", "aspiration", "pattern") },
+                ["kind"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("thought", "aspiration", "pattern", "note") },
                 ["scores"] = Scores.DeepClone(),
             }, "body"),
         Tool("search", "Find entries whose text contains the query.",
@@ -88,7 +97,8 @@ public static class McpEndpoint
                         ["protocolVersion"] = Versions.Contains(p["protocolVersion"]?.GetValue<string>()) ? p["protocolVersion"]!.GetValue<string>() : Versions[0],
                         ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
                         ["serverInfo"] = new JsonObject { ["name"] = "tacitly", ["version"] = "3.0.0" },
-                        ["instructions"] = "Tacitly stores the user's thoughts and aspirations as vectors the user defines. " +
+                        ["instructions"] = "Tacitly is the user's inbox of quick notes and to-dos (note, todos, done), and a place where they score thoughts and aspirations " +
+                                           "as vectors they define themselves. Notes are never scored. " +
                                            "Scores are the user's own judgement on -5..5 bipolar dimensions; call list_lenses first and only score dimensions you have good reason to.",
                     },
                     "ping" => new JsonObject(),
@@ -114,6 +124,9 @@ public static class McpEndpoint
                     dimensions = l.Dimensions.Where(d => d.ArchivedAt is null).OrderBy(d => d.Position)
                         .Select(d => new { d.Name, low = d.LowLabel, high = d.HighLabel, d.Weight, observedOnly = d.Weight == 0 }),
                 }),
+                "note" => await mind.CaptureAsync(Mind.Normalize(new CaptureRequest(Kinds.Note, Str(a, "text", true)!, null, "claude", Bool(a, "todo")), Kinds.Note), ct),
+                "todos" => await mind.OpenTodosAsync(ct),
+                "done" => await mind.TickAsync(Guid(a), ct) ?? throw new ToolError("entry not found"),
                 "capture" => await CaptureAsync(a, mind, ct),
                 "search" => await mind.StreamAsync(null, null, Str(a, "query", true), null, Math.Clamp(Int(a, "limit") ?? 20, 1, 100), ct),
                 "match" => await MatchAsync(a, mind, ct),
@@ -126,15 +139,14 @@ public static class McpEndpoint
             return Content(JsonSerializer.Serialize(result, Json), false);
         }
         catch (ToolError e) { return Content(e.Message, true); }
+        catch (Refused e) { return Content(e.Message, true); }
     }
 
     private static async Task<object> CaptureAsync(JsonObject a, Mind mind, CancellationToken ct)
     {
         var body = Str(a, "body", true)!;
-        var kind = Str(a, "kind") ?? Kinds.Thought;
-        if (!Kinds.IsValid(kind)) throw new ToolError("kind must be thought, aspiration or pattern");
         var scores = await NamedScoresAsync(a, mind, ct);
-        return await mind.CaptureAsync(new CaptureRequest(kind, body, scores, "claude"), ct);
+        return await mind.CaptureAsync(Mind.Normalize(new CaptureRequest(Str(a, "kind"), body, scores, "claude"), Kinds.Thought), ct);
     }
 
     private static async Task<object> ScoreAsync(JsonObject a, Mind mind, CancellationToken ct)
@@ -179,6 +191,8 @@ public static class McpEndpoint
         if (required && string.IsNullOrWhiteSpace(s)) throw new ToolError($"'{key}' is required");
         return s;
     }
+
+    private static bool? Bool(JsonObject a, string key) => a[key] is JsonValue v && v.TryGetValue<bool>(out var b) ? b : null;
 
     private static int? Int(JsonObject a, string key) => a[key] is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;
 

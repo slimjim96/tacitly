@@ -1,6 +1,6 @@
 # 0004: Quick capture
 
-- **Status:** idea
+- **Status:** building
 - **Issue:** #
 
 ## Why
@@ -11,8 +11,8 @@ Most of what comes to mind during a day is small: a note, a reminder, something 
 
 - **Note**, a new kind of entry, and the default in the capture box. Type a line, press Enter, it's saved. No kind picker, no sliders, no landing panel. Shift+Enter for a second line.
 - **To-do:** any note can be a to-do. Start the line with `[]` or tick the box next to the input. It gets a checkbox; ticking it marks it done. That is the whole to-do model: no dates, priorities or projects.
-- **Inbox** becomes the first tab: open to-dos at the top, then today's notes, then earlier ones, newest first. Done to-dos collapse into a "done today" line. Text search covers notes like everything else.
-- **Make it more:** from the Inbox or the entry drawer, a note can become a thought, an aspiration or a take (spec 0003). It keeps its text, date and history, and then appears in the lens views as unscored, ready to place. This is the only path from capture into the vectors.
+- **Inbox** becomes the first tab: open to-dos at the top, then today's notes, then earlier ones, newest first. Done to-dos collapse into a "done in the last day" line. Text search covers notes like everything else.
+- **Make it more:** from the Inbox or the entry drawer, a note can become a thought, an aspiration, a pattern, or a take once spec 0003 adds takes. It keeps its text, date and history, and then appears in the lens views as unscored, ready to place. This is the only path from capture into the vectors.
 - **Nothing scored, nothing counted.** Notes have no vector, don't count in the "unscored" badge, and stay out of drift, themes, orbits and the map. The lens views look exactly as they do today.
 - **Stale to-dos:** an open to-do older than 14 days appears in "Still true?", where *still true* keeps it, *done* ticks it and *release* drops it. Plain notes fade quietly and never come back on their own.
 - **No lens needed:** with zero lenses the app opens on the Inbox. The starter-lens offer moves into the Lenses tab.
@@ -20,15 +20,15 @@ Most of what comes to mind during a day is small: a note, a reminder, something 
 
 ## Done when
 
-- [ ] A note is saved with one line and Enter, with no other input
-- [ ] `[]` or the checkbox makes it a to-do; ticking it marks it done, unticking reopens it
-- [ ] The Inbox lists open to-dos first, then notes, newest first, and search finds them
-- [ ] A note can become a thought, aspiration or take, keeping its text and date
-- [ ] Notes don't appear in the unscored count, drift, themes, orbits or the map
-- [ ] An open to-do older than 14 days shows in "Still true?"
-- [ ] A fresh install with no lenses opens on a working Inbox
-- [ ] Claude can add a note or to-do, list open to-dos and tick one done through MCP
-- [ ] `scripts/smoke.py` covers notes, to-dos, promotion, the review rule and the MCP tools
+- [x] A note is saved with one line and Enter, with no other input
+- [x] `[]` or the checkbox makes it a to-do; ticking it marks it done, unticking reopens it
+- [x] The Inbox lists open to-dos first, then notes, newest first, and search finds them
+- [x] A note can become a thought or aspiration (a take after spec 0003), keeping its text and date
+- [x] Notes don't appear in the unscored count, drift, themes, orbits or the map
+- [x] An open to-do older than 14 days shows in "Still true?"
+- [x] A fresh install with no lenses opens on a working Inbox
+- [x] Claude can add a note or to-do, list open to-dos and tick one done through MCP
+- [x] `scripts/smoke.py` covers notes, to-dos, promotion, the review rule and the MCP tools
 
 ## Who does what
 

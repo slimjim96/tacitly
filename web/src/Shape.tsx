@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Entry, type Kind, type Lens, type Scored, type Scores } from './api'
-import { useApp } from './App'
+import { useApp } from './context'
 import { DimSlider, KindMark, Radar } from './viz'
 import { EntryRow } from './Views'
 

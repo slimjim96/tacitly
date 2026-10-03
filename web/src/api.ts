@@ -1,4 +1,4 @@
-export type Kind = 'thought' | 'aspiration' | 'pattern'
+export type Kind = 'note' | 'thought' | 'aspiration' | 'pattern'
 export type Status = 'active' | 'done' | 'released'
 export type Scores = Record<string, number>          // dimensionId -> -5..5 (absent = unscored)
 export type ScorePatch = Record<string, number | null> // null clears
@@ -10,6 +10,7 @@ export interface Entry {
   id: string; kind: Kind; body: string; status: Status
   createdAt: string; touchedAt: string; weight: number; salience: number; source: string
   scores: Scores
+  isTodo: boolean
 }
 export interface Scored { entry: Entry; similarity: number }
 export interface Landing { lensId: string; lensName: string; gravity: Scored | null; near: Scored[] }
@@ -26,7 +27,8 @@ export interface MapPoint {
   scores: Scores; pcx: number; pcy: number; theme: number | null; orbits: string | null; was: Scores | null
 }
 export interface LensMap { lens: Lens; points: MapPoint[]; themes: Theme[] }
-export interface Pulse { thoughts: number; aspirations: number; patterns: number; lenses: number; dimensions: number; scores: number; unscored: number }
+export interface Inbox { todos: Entry[]; notes: Entry[]; doneRecently: Entry[] }
+export interface Pulse { notes: number; todos: number; thoughts: number; aspirations: number; patterns: number; lenses: number; dimensions: number; scores: number; unscored: number; claude: number }
 
 const TOKEN_KEY = 'tacitly.token'
 const token = () => { try { return localStorage.getItem(TOKEN_KEY) ?? '' } catch { return '' } }
@@ -66,6 +68,9 @@ export const api = {
   deleteDimension: (id: string) => call<void>('DELETE', `/dimensions/${id}`),
   reorder: (lensId: string, dimensionIds: string[]) => call<Lens>('PUT', `/lenses/${lensId}/order`, { dimensionIds }),
 
+  // Quick capture: a note, or a to-do. A leading "[]" also makes a to-do.
+  note: (body: string, todo = false) => call<EntryDetail>('POST', '/entries', { body, todo }),
+  inbox: () => call<Inbox>('GET', '/inbox'),
   capture: (kind: Kind, body: string, scores: ScorePatch) => call<EntryDetail>('POST', '/entries', { kind, body, scores }),
   entries: (q: { kind?: Kind; q?: string; limit?: number } = {}) => {
     const p = new URLSearchParams({ limit: String(q.limit ?? 200) })
@@ -74,7 +79,7 @@ export const api = {
     return call<Entry[]>('GET', `/entries?${p}`)
   },
   detail: (id: string) => call<EntryDetail>('GET', `/entries/${id}`),
-  update: (id: string, patch: Partial<Pick<Entry, 'body' | 'status' | 'kind'>>) => call<Entry>('PATCH', `/entries/${id}`, patch),
+  update: (id: string, patch: Partial<Pick<Entry, 'body' | 'status' | 'kind' | 'isTodo'>>) => call<Entry>('PATCH', `/entries/${id}`, patch),
   remove: (id: string) => call<void>('DELETE', `/entries/${id}`),
   score: (id: string, values: ScorePatch, scorer = 'me') =>
     call<EntryDetail>('PUT', `/entries/${id}/scores${scorer === 'me' ? '' : `?scorer=${encodeURIComponent(scorer)}`}`, values),

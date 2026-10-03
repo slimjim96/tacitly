@@ -30,6 +30,7 @@ services:
       Tacitly__ConnectionString: Host=db;Database=tacitly;Username=tacitly;Password=${POSTGRES_PASSWORD}
       Tacitly__AccessToken: ${TACITLY_TOKEN:-}
       Tacitly__Mind__HalfLifeDays: ${HALF_LIFE_DAYS:-30}
+      Tacitly__Mind__StaleTodoDays: ${STALE_TODO_DAYS:-14}
 
 volumes:
   db:

@@ -2,10 +2,15 @@ using Tacitly.Store;
 
 namespace Tacitly.Engine;
 
+/// <summary>A request that breaks a rule of the model (e.g. scoring a note). Becomes a 400, or a tool error over MCP.</summary>
+public sealed class Refused(string message) : Exception(message);
+
 public sealed class MindOptions
 {
     /// <summary>Salience halves after this many days untouched.</summary>
     public double HalfLifeDays { get; set; } = 30;
+    /// <summary>An open to-do untouched this long comes back in "Still true?".</summary>
+    public double StaleTodoDays { get; set; } = 14;
 }
 
 /// <summary>
@@ -68,9 +73,38 @@ public sealed class Mind(Db db, MindOptions opt)
 
     // ---- entries ------------------------------------------------------------------------------
 
-    public async Task<EntryDetail> CaptureAsync(CaptureRequest req, CancellationToken ct)
+    private static readonly System.Text.RegularExpressions.Regex TodoMarker = new(@"^\[\s?\]\s*");
+
+    /// <summary>
+    /// The capture rules, shared by the app, /api/ingest and MCP. A leading "[]" makes a to-do and is stripped.
+    /// With no kind given, a to-do is a note and anything else gets <paramref name="defaultKind"/>.
+    /// Only notes can be to-dos, and notes are never scored.
+    /// </summary>
+    public static CaptureRequest Normalize(CaptureRequest req, string defaultKind)
     {
-        var e = new Entry { Kind = req.Kind, Body = req.Body.Trim(), Source = string.IsNullOrWhiteSpace(req.Source) ? "app" : req.Source.Trim().ToLowerInvariant() };
+        var body = (req.Body ?? "").Trim();
+        var marked = TodoMarker.IsMatch(body);
+        if (marked) body = TodoMarker.Replace(body, "");
+        var todo = marked || req.Todo == true;
+        var kind = string.IsNullOrWhiteSpace(req.Kind) ? (todo ? Kinds.Note : defaultKind) : req.Kind.Trim().ToLowerInvariant();
+        if (!Kinds.IsValid(kind)) throw new Refused(Kinds.Expected);
+        if (body.Length is 0 or > 4000) throw new Refused("body must be 1-4000 characters");
+        if (todo && kind != Kinds.Note) throw new Refused("only notes can be to-dos");
+        if (kind == Kinds.Note && req.Scores is { Count: > 0 }) throw new Refused(NotScored);
+        return req with { Kind = kind, Body = body, Todo = todo };
+    }
+
+    private const string NotScored = "notes aren't scored; make it a thought, aspiration or pattern first";
+
+    /// <param name="createdAt">Backdates an import; the entry is treated as untouched since then.</param>
+    public async Task<EntryDetail> CaptureAsync(CaptureRequest req, CancellationToken ct, DateTime? createdAt = null)
+    {
+        var at = createdAt?.ToUniversalTime() ?? DateTime.UtcNow;
+        var e = new Entry
+        {
+            Kind = req.Kind ?? Kinds.Note, Body = req.Body.Trim(), IsTodo = req.Todo == true, CreatedAt = at, TouchedAt = at,
+            Source = string.IsNullOrWhiteSpace(req.Source) ? "app" : req.Source.Trim().ToLowerInvariant(),
+        };
         await db.InsertEntryAsync(e, ct);
         if (req.Scores is { Count: > 0 }) await db.SetScoresAsync(e.Id, req.Scores, "me", ct);
         return (await DetailAsync(e.Id, ct))!;
@@ -104,7 +138,9 @@ public sealed class Mind(Db db, MindOptions opt)
 
     public async Task<EntryDetail?> SetScoresAsync(Guid id, Dictionary<Guid, double?> values, string scorer, CancellationToken ct)
     {
-        if (await db.GetEntryAsync(id, ct) is null) return null;
+        var e = await db.GetEntryAsync(id, ct);
+        if (e is null) return null;
+        if (e.Kind == Kinds.Note) throw new Refused(NotScored);
         await db.SetScoresAsync(id, values, scorer, ct);
         if (scorer == "me") await db.TouchAsync([id], 0.1, ct);
         return await DetailAsync(id, ct);
@@ -116,11 +152,46 @@ public sealed class Mind(Db db, MindOptions opt)
         if (e is null) return null;
         if (!string.IsNullOrWhiteSpace(req.Body)) e.Body = req.Body.Trim();
         if (req.Status is not null) e.Status = req.Status;
-        if (req.Kind is not null) e.Kind = req.Kind;
+        var kind = req.Kind ?? e.Kind;
+        if (kind == Kinds.Note && e.Kind != Kinds.Note
+            && ((await db.ScoresForAsync([id], ct))[id].Count > 0 || (await db.PerspectivesAsync(id, ct)).Count > 0))
+            throw new Refused("it has scores; clear them before making it a note");
+        if (req.IsTodo == true && kind != Kinds.Note) throw new Refused("only notes can be to-dos");
+        if (e.Kind == Kinds.Note && kind != Kinds.Note) e.IsTodo = false;   // promoted: it leaves the inbox
+        if (req.IsTodo is { } todo && kind == Kinds.Note) e.IsTodo = todo;
+        e.Kind = kind;
         e.TouchedAt = DateTime.UtcNow;
         await db.UpdateEntryAsync(e, ct);
         return Dto(e, (await db.ScoresForAsync([id], ct))[id]);
     }
+
+    // ---- quick capture: the inbox ----------------------------------------------------------------
+
+    /// <summary>Open to-dos, then plain notes, newest first; plus to-dos ticked in the last day.</summary>
+    public async Task<Inbox> InboxAsync(int limit, CancellationToken ct)
+    {
+        var active = await db.ListEntriesAsync(Kinds.Note, Statuses.Active, null, null, limit, ct);
+        var cutoff = DateTime.UtcNow.AddDays(-1);
+        var done = (await db.ListEntriesAsync(Kinds.Note, Statuses.Done, null, null, 200, ct))
+            .Where(e => e.IsTodo && e.TouchedAt >= cutoff).OrderByDescending(e => e.TouchedAt);
+        return new Inbox(
+            active.Where(e => e.IsTodo).Select(e => Dto(e, Empty)).ToList(),
+            active.Where(e => !e.IsTodo).Select(e => Dto(e, Empty)).ToList(),
+            done.Select(e => Dto(e, Empty)).ToList());
+    }
+
+    public async Task<List<EntryDto>> OpenTodosAsync(CancellationToken ct) => (await InboxAsync(1000, ct)).Todos.ToList();
+
+    /// <summary>Tick a to-do. Anything that isn't a to-do is refused rather than silently closed.</summary>
+    public async Task<EntryDto?> TickAsync(Guid id, CancellationToken ct)
+    {
+        var e = await db.GetEntryAsync(id, ct);
+        if (e is null) return null;
+        if (!e.IsTodo) throw new Refused("only to-dos can be ticked done");
+        return await UpdateAsync(id, new UpdateRequest(null, Statuses.Done, null), ct);
+    }
+
+    private static readonly ScoreMap Empty = new();
 
     public async Task<List<EntryDto>> StreamAsync(string? kind, string? status, string? q, Guid? unscoredIn, int limit, CancellationToken ct)
     {
@@ -307,12 +378,18 @@ public sealed class Mind(Db db, MindOptions opt)
 
     // ---- the river: resurfacing and outside currents ---------------------------------------------------
 
-    /// <summary>Active entries that have faded (salience under half) and deserve a "still true?".</summary>
+    /// <summary>
+    /// Active entries that have faded (salience under half) and deserve a "still true?". Notes fade quietly and
+    /// never come back on their own; the exception is an open to-do left untouched for <see cref="MindOptions.StaleTodoDays"/>.
+    /// Stale to-dos come first.
+    /// </summary>
     public async Task<List<EntryDto>> ReviewAsync(int limit, CancellationToken ct)
     {
+        var now = DateTime.UtcNow;
+        bool StaleTodo(Entry e) => e.IsTodo && (now - e.TouchedAt).TotalDays >= opt.StaleTodoDays;
         var entries = (await db.ListEntriesAsync(null, Statuses.Active, null, null, 5000, ct))
-            .Where(e => Salience(e) < 0.5)
-            .OrderBy(Salience).Take(limit).ToList();
+            .Where(e => e.Kind == Kinds.Note ? StaleTodo(e) : Salience(e) < 0.5)
+            .OrderBy(e => e.Kind == Kinds.Note ? 0 : 1).ThenBy(Salience).Take(limit).ToList();
         var scores = await db.ScoresForAsync(entries.Select(e => e.Id).ToList(), ct);
         return entries.Select(e => Dto(e, scores[e.Id])).ToList();
     }
@@ -349,8 +426,9 @@ public sealed class Mind(Db db, MindOptions opt)
         var c = await db.CountsAsync(ct);
         return new
         {
+            notes = c["note"], todos = c["todo"],
             thoughts = c["thought"], aspirations = c["aspiration"], patterns = c["pattern"],
-            lenses = c["lens"], dimensions = c["dimension"], scores = c["score"], unscored = c["unscored"],
+            lenses = c["lens"], dimensions = c["dimension"], scores = c["score"], unscored = c["unscored"], claude = c["claude"],
         };
     }
 
@@ -363,7 +441,7 @@ public sealed class Mind(Db db, MindOptions opt)
     }
 
     private EntryDto Dto(Entry e, IReadOnlyDictionary<Guid, double> scores) =>
-        new(e.Id, e.Kind, e.Body, e.Status, e.CreatedAt, e.TouchedAt, Math.Round(e.Weight, 2), Salience(e), e.Source, scores);
+        new(e.Id, e.Kind, e.Body, e.Status, e.CreatedAt, e.TouchedAt, Math.Round(e.Weight, 2), Salience(e), e.Source, scores, e.IsTodo);
 
     private async Task<List<ScoredDto>> DtosAsync(List<(Entry Entry, double Sim)> hits, CancellationToken ct)
     {

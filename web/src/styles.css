@@ -12,6 +12,9 @@
   --lo: #3f78d8;   /* low pole */
   --hi: #e0901a;   /* high pole */
   --mid: #c9c7c1;  /* neutral */
+  --side: #efede7;
+  --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  --toast-accent: #8fe3bf;
   --radius: 12px;
   color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -31,6 +34,8 @@
     --lo: #6b9cff;
     --hi: #f0a83c;
     --mid: #3a3f4a;
+    --side: #13161c;
+    --toast-accent: #1d7a57;
     color-scheme: dark;
   }
 }
@@ -290,3 +295,4 @@ circle.pt { stroke: var(--panel); stroke-width: 1.5; }
 .picker.check { gap: 4px; }
 .dim-actions { white-space: nowrap; display: flex; gap: 10px; }
 .archived { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+

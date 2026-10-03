@@ -5,9 +5,10 @@ A self-hosted tool where the user (Jim) writes his own vectors: he defines lense
 ## Handoff (2 October 2026)
 
 - **State:** Renamed to Tacitly and pushed (6082073). The first CI run passed: real Npgsql against Postgres, full smoke test, and the Docker image build.
+- **Direction:** Capture-first (decided 3 October 2026). Quick notes and to-dos come first, and scoring is optional, later, and only for what earns it. The principles stay as written. The original vector concept may become a separate game or learning project later; keep it out of this repo.
 - **Next:**
   1. `docker compose up --build` on the homelab, then `python3 scripts/smoke.py http://<host>:8080 <token>`.
-  2. Build specs in this order: 0001 evening journal, 0003 playbook, 0002 pick-up brief.
+  2. Build specs in this order: 0004 quick capture, 0001 evening journal, 0003 playbook, 0002 pick-up brief.
 - **Watch out:**
   - `db/schema.sql` runs on every start and must stay idempotent. It carries the v1 and v2 upgrade paths.
   - Vectors are built only by the triggers in `schema.sql`. Application code never writes a vector. The rule (`score_or_0 * sqrt(weight)`, active dimensions by position, `scorer = 'me'` only) is mirrored in `VectorSpace` in `Engine/Algorithms.cs`; change both together.

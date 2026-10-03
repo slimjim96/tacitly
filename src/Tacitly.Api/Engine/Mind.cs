@@ -1,6 +1,6 @@
-using InsideOut.Store;
+using Tacitly.Store;
 
-namespace InsideOut.Engine;
+namespace Tacitly.Engine;
 
 public sealed class MindOptions
 {

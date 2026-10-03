@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Npgsql;
 
-namespace InsideOut.Store;
+namespace Tacitly.Store;
 
 /// <summary>
 /// All SQL lives here. Scores are the source of truth; pgvector rows in entry_vectors are kept in

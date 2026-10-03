@@ -4,5 +4,5 @@
 web/node_modules/
 
 # Built by `npm run build` in web/ (the Docker build does this for you)
-src/InsideOut.Api/wwwroot/
+src/Tacitly.Api/wwwroot/
 *.zip

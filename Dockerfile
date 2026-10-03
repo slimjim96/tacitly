@@ -4,17 +4,17 @@ WORKDIR /src/web
 COPY web/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
-RUN npm run build   # writes to ../src/InsideOut.Api/wwwroot
+RUN npm run build   # writes to ../src/Tacitly.Api/wwwroot
 
 # ---- api -------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api
 WORKDIR /src
-COPY src/InsideOut.Api/InsideOut.Api.csproj src/InsideOut.Api/
-RUN dotnet restore src/InsideOut.Api/InsideOut.Api.csproj
+COPY src/Tacitly.Api/Tacitly.Api.csproj src/Tacitly.Api/
+RUN dotnet restore src/Tacitly.Api/Tacitly.Api.csproj
 COPY db/ db/
 COPY src/ src/
-COPY --from=web /src/src/InsideOut.Api/wwwroot src/InsideOut.Api/wwwroot
-RUN dotnet publish src/InsideOut.Api/InsideOut.Api.csproj -c Release -o /app --no-restore
+COPY --from=web /src/src/Tacitly.Api/wwwroot src/Tacitly.Api/wwwroot
+RUN dotnet publish src/Tacitly.Api/Tacitly.Api.csproj -c Release -o /app --no-restore
 
 # ---- runtime ---------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
@@ -23,4 +23,4 @@ COPY --from=api /app .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 USER app
-ENTRYPOINT ["dotnet", "InsideOut.Api.dll"]
+ENTRYPOINT ["dotnet", "Tacitly.Api.dll"]

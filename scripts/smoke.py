@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end check against a running InsideOut. Seeds sample data, exercises every endpoint, asserts behaviour.
+"""End-to-end check against a running Tacitly. Seeds sample data, exercises every endpoint, asserts behaviour.
 
     python3 scripts/smoke.py http://localhost:8080 [token]
 
@@ -17,7 +17,7 @@ KEEP = "--keep" in sys.argv
 def call(method, path, body=None, expect=200):
     req = urllib.request.Request(BASE + path, method=method,
                                  data=None if body is None else json.dumps(body).encode(),
-                                 headers={"content-type": "application/json", "X-InsideOut-Token": TOKEN})
+                                 headers={"content-type": "application/json", "X-Tacitly-Token": TOKEN})
     try:
         with urllib.request.urlopen(req) as r:
             status, raw = r.status, r.read()
@@ -30,7 +30,7 @@ def call(method, path, body=None, expect=200):
 def ok(msg): print(f"  ok  {msg}")
 
 
-print(f"InsideOut smoke test against {BASE}")
+print(f"Tacitly smoke test against {BASE}")
 
 # leftovers from an interrupted earlier run
 for old in call("GET", "/lenses"):
@@ -184,7 +184,7 @@ def rpc(method, params=None, id=1):
         raw = r.read()
         return json.loads(raw) if raw else r.status
 init = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}})
-assert init["result"]["serverInfo"]["name"] == "insideout"
+assert init["result"]["serverInfo"]["name"] == "tacitly"
 assert rpc("notifications/initialized", id=None) == 202
 tools = [t["name"] for t in rpc("tools/list")["result"]["tools"]]
 assert {"capture", "match", "orbits", "list_lenses", "score"} <= set(tools), tools

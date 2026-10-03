@@ -5,7 +5,7 @@
 
 ## Why
 
-The end of the day is when the unwritten things surface: what moved, what's stuck, what was decided and why. Today InsideOut only takes one thought at a time, so there's nowhere for a day to land, and nothing that makes talking it through with an AI leave a trace.
+The end of the day is when the unwritten things surface: what moved, what's stuck, what was decided and why. Today Tacitly only takes one thought at a time, so there's nowhere for a day to land, and nothing that makes talking it through with an AI leave a trace.
 
 ## What
 

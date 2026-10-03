@@ -1,13 +1,13 @@
 using System.Data.Common;
-using InsideOut;
-using InsideOut.Engine;
-using InsideOut.Store;
+using Tacitly;
+using Tacitly.Engine;
+using Tacitly.Store;
 
 var builder = WebApplication.CreateBuilder(args);
-var cfg = builder.Configuration.GetSection("InsideOut");
+var cfg = builder.Configuration.GetSection("Tacitly");
 var accessToken = cfg["AccessToken"];
 var connectionString = cfg["ConnectionString"]
-    ?? throw new InvalidOperationException("InsideOut:ConnectionString is required");
+    ?? throw new InvalidOperationException("Tacitly:ConnectionString is required");
 
 builder.Services.AddSingleton(cfg.GetSection("Mind").Get<MindOptions>() ?? new MindOptions());
 builder.Services.AddSingleton(Npgsql.NpgsqlDataSource.Create(connectionString));
@@ -47,7 +47,7 @@ if (!string.IsNullOrWhiteSpace(accessToken))
                       || ctx.Request.Path.StartsWithSegments("/mcp");
         if (guarded)
         {
-            var header = ctx.Request.Headers["X-InsideOut-Token"].FirstOrDefault();
+            var header = ctx.Request.Headers["X-Tacitly-Token"].FirstOrDefault();
             var auth = ctx.Request.Headers.Authorization.FirstOrDefault();
             if (header is null && auth is not null && auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) header = auth[7..].Trim();
             var supplied = System.Text.Encoding.UTF8.GetBytes(header ?? "");

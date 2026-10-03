@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Renamed from InsideOut to Tacitly: namespace and project folder, config keys (`Tacitly__*`), env vars (`TACITLY_*`), `X-Tacitly-Token` header, database/user/image name, localStorage keys, MCP server name
+
 ## 3.0.0
 - Score history (trigger-recorded), map trails, "How it has moved" in the entry drawer
 - "Still true?" review queue for faded entries

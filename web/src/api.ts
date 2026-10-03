@@ -28,13 +28,13 @@ export interface MapPoint {
 export interface LensMap { lens: Lens; points: MapPoint[]; themes: Theme[] }
 export interface Pulse { thoughts: number; aspirations: number; patterns: number; lenses: number; dimensions: number; scores: number; unscored: number }
 
-const TOKEN_KEY = 'insideout.token'
+const TOKEN_KEY = 'tacitly.token'
 const token = () => { try { return localStorage.getItem(TOKEN_KEY) ?? '' } catch { return '' } }
 
 async function call<T>(method: string, path: string, body?: unknown, retried = false): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { 'content-type': 'application/json', 'X-InsideOut-Token': token() },
+    headers: { 'content-type': 'application/json', 'X-Tacitly-Token': token() },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (res.status === 401 && !retried) {

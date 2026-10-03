@@ -1,15 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using InsideOut.Engine;
-using InsideOut.Store;
+using Tacitly.Engine;
+using Tacitly.Store;
 
-namespace InsideOut;
+namespace Tacitly;
 
 /// <summary>
 /// A minimal MCP server (Streamable HTTP, stateless, JSON responses) at /mcp, so Claude or any MCP client
-/// can capture into and read from InsideOut. Hand-rolled JSON-RPC: tools only, no sessions, no streaming.
+/// can capture into and read from Tacitly. Hand-rolled JSON-RPC: tools only, no sessions, no streaming.
 ///
-///   claude mcp add --transport http insideout https://your-host/mcp --header "Authorization: Bearer $INSIDEOUT_TOKEN"
+///   claude mcp add --transport http tacitly https://your-host/mcp --header "Authorization: Bearer $TACITLY_TOKEN"
 /// </summary>
 public static class McpEndpoint
 {
@@ -87,8 +87,8 @@ public static class McpEndpoint
                     {
                         ["protocolVersion"] = Versions.Contains(p["protocolVersion"]?.GetValue<string>()) ? p["protocolVersion"]!.GetValue<string>() : Versions[0],
                         ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
-                        ["serverInfo"] = new JsonObject { ["name"] = "insideout", ["version"] = "3.0.0" },
-                        ["instructions"] = "InsideOut stores the user's thoughts and aspirations as vectors the user defines. " +
+                        ["serverInfo"] = new JsonObject { ["name"] = "tacitly", ["version"] = "3.0.0" },
+                        ["instructions"] = "Tacitly stores the user's thoughts and aspirations as vectors the user defines. " +
                                            "Scores are the user's own judgement on -5..5 bipolar dimensions; call list_lenses first and only score dimensions you have good reason to.",
                     },
                     "ping" => new JsonObject(),

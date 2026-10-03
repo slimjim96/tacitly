@@ -12,16 +12,16 @@ jobs:
       db:
         image: pgvector/pgvector:pg17
         env:
-          POSTGRES_DB: insideout
-          POSTGRES_USER: insideout
+          POSTGRES_DB: tacitly
+          POSTGRES_USER: tacitly
           POSTGRES_PASSWORD: ci
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U insideout -d insideout"
+          --health-cmd "pg_isready -U tacitly -d tacitly"
           --health-interval 5s --health-timeout 5s --health-retries 20
     env:
-      InsideOut__ConnectionString: Host=localhost;Database=insideout;Username=insideout;Password=ci
-      InsideOut__AccessToken: ci-token
+      Tacitly__ConnectionString: Host=localhost;Database=tacitly;Username=tacitly;Password=ci
+      Tacitly__AccessToken: ci-token
       ASPNETCORE_URLS: http://localhost:5080
     steps:
       - uses: actions/checkout@v4
@@ -39,12 +39,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Build API
-        run: dotnet build src/InsideOut.Api -c Release
+        run: dotnet build src/Tacitly.Api -c Release
 
       # End to end against real Postgres + pgvector through the real Npgsql driver.
       - name: Start API
         run: |
-          nohup dotnet run --project src/InsideOut.Api -c Release --no-build > api.log 2>&1 &
+          nohup dotnet run --project src/Tacitly.Api -c Release --no-build > api.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS http://localhost:5080/api/health && exit 0; sleep 2; done
           cat api.log; exit 1
       - name: Smoke test
@@ -58,4 +58,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image
-        run: docker build -t insideout:ci .
+        run: docker build -t tacitly:ci .

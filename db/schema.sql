@@ -1,4 +1,4 @@
--- InsideOut schema: human-defined vectors.
+-- Tacitly schema: human-defined vectors.
 -- Idempotent: the app runs this on every start. Safe to run by hand with psql too.
 --
 --   lenses        a named vector space you define ("Feel", "Value")

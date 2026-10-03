@@ -1,4 +1,4 @@
-namespace InsideOut.Engine;
+namespace Tacitly.Engine;
 
 /// <summary>
 /// One lens as a vector space. Mirrors the rule in db/schema.sql:

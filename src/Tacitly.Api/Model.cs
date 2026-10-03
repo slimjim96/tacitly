@@ -1,4 +1,4 @@
-namespace InsideOut;
+namespace Tacitly;
 
 public static class Kinds
 {

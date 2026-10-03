@@ -29,7 +29,7 @@ interface Ctx {
 const AppCtx = createContext<Ctx>(null!)
 export const useApp = () => useContext(AppCtx)
 
-const LENS_KEY = 'insideout.lens'
+const LENS_KEY = 'tacitly.lens'
 const remembered = () => { try { return localStorage.getItem(LENS_KEY) } catch { return null } }
 
 export default function App() {
@@ -69,7 +69,7 @@ export default function App() {
         <header className="top">
           <div className="brand">
             <span className="logo" aria-hidden>◉</span>
-            <h1>InsideOut</h1>
+            <h1>Tacitly</h1>
           </div>
           {pulse && (
             <p className="pulse">

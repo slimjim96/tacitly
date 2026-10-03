@@ -1,4 +1,4 @@
-# InsideOut
+# Tacitly
 
 A self-hosted place for thoughts and aspirations where **you** write the vectors.
 
@@ -62,7 +62,7 @@ Two containers: `db` (pgvector/pgvector:pg17) and `app` (.NET 10 API serving the
 
 ### Behind HAProxy / Cloudflare
 
-A single HTTP port, so it's one more HAProxy backend. Don't expose it bare. Keep it LAN/VPN-only, put Cloudflare Access in front, or set `INSIDEOUT_TOKEN` (the UI asks once and sends it as `X-InsideOut-Token`). `/api/health` stays open for health checks.
+A single HTTP port, so it's one more HAProxy backend. Don't expose it bare. Keep it LAN/VPN-only, put Cloudflare Access in front, or set `TACITLY_TOKEN` (the UI asks once and sends it as `X-Tacitly-Token`). `/api/health` stays open for health checks.
 
 ### Feeding it from elsewhere
 
@@ -70,7 +70,7 @@ Scores go by `"Lens/Dimension"` name (case-insensitive), so callers don't need i
 
 ```bash
 curl -X POST https://your-host/api/ingest \
-  -H "content-type: application/json" -H "X-InsideOut-Token: $INSIDEOUT_TOKEN" \
+  -H "content-type: application/json" -H "X-Tacitly-Token: $TACITLY_TOKEN" \
   -d '{"body":"SlimFin: drawdown hit 4%","source":"slimfin","scores":{"Feel/Fear":3,"Feel/Energy":-2}}'
 ```
 
@@ -79,10 +79,10 @@ An iOS Shortcut is the same call: *Ask for Input* → *Get Contents of URL* (POS
 **Claude (MCP).** `/mcp` is a Model Context Protocol server (Streamable HTTP, tools only). Tools: `list_lenses`, `capture`, `search`, `match`, `orbits`, `review_queue`, `get_entry`, `score`.
 
 ```bash
-claude mcp add --transport http insideout https://your-host/mcp --header "Authorization: Bearer $INSIDEOUT_TOKEN"
+claude mcp add --transport http tacitly https://your-host/mcp --header "Authorization: Bearer $TACITLY_TOKEN"
 ```
 
-For Claude Desktop or claude.ai, add it as a custom connector with the same URL. The endpoint accepts `Authorization: Bearer <token>` or `X-InsideOut-Token`. Entries Claude captures are tagged `source: claude`.
+For Claude Desktop or claude.ai, add it as a custom connector with the same URL. The endpoint accepts `Authorization: Bearer <token>` or `X-Tacitly-Token`. Entries Claude captures are tagged `source: claude`.
 
 ### Checking a deployment
 
@@ -152,8 +152,8 @@ The vector column has no fixed size, because each lens has its own dimension cou
 
 ```bash
 docker compose up -d db                       # just Postgres
-cd src/InsideOut.Api
-InsideOut__ConnectionString="Host=localhost;Database=insideout;Username=insideout;Password=<pw>" \
+cd src/Tacitly.Api
+Tacitly__ConnectionString="Host=localhost;Database=tacitly;Username=tacitly;Password=<pw>" \
   dotnet run --urls http://localhost:5080
 cd web && npm install && npm run dev          # UI with hot reload, proxies /api to :5080
 # or `npm run build` once to have the API serve the UI itself (wwwroot is not committed)
@@ -168,7 +168,7 @@ New ideas start as a short spec in `docs/specs/` (see the README there). CI buil
 ## Backup
 
 ```bash
-docker compose exec db pg_dump -U insideout insideout | gzip > insideout-$(date +%F).sql.gz
+docker compose exec db pg_dump -U tacitly tacitly | gzip > tacitly-$(date +%F).sql.gz
 ```
 
 `/api/export` gives the same data as plain JSON (lenses, dimensions, entries, scores).
@@ -177,7 +177,7 @@ docker compose exec db pg_dump -U insideout insideout | gzip > insideout-$(date 
 
 ```
 db/schema.sql             tables, vector triggers, v1 upgrade (compiled into the app, runnable by hand)
-src/InsideOut.Api/
+src/Tacitly.Api/
   Program.cs              endpoints, validation, optional token
   Mcp.cs                  MCP server at /mcp (hand-rolled JSON-RPC, tools only)
   Model.cs                lenses, dimensions, entries, DTOs

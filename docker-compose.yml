@@ -1,35 +1,35 @@
-# InsideOut: human-defined vectors for thoughts and aspirations.
+# Tacitly: human-defined vectors for thoughts and aspirations.
 #   cp .env.example .env && docker compose up -d --build   -> http://<host>:8080
 
-name: insideout
+name: tacitly
 
 services:
   db:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: insideout
-      POSTGRES_USER: insideout
+      POSTGRES_DB: tacitly
+      POSTGRES_USER: tacitly
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U insideout -d insideout"]
+      test: ["CMD-SHELL", "pg_isready -U tacitly -d tacitly"]
       interval: 5s
       retries: 20
 
   app:
     build: .
-    image: insideout:latest
+    image: tacitly:latest
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
     ports:
-      - "${INSIDEOUT_PORT:-8080}:8080"
+      - "${TACITLY_PORT:-8080}:8080"
     environment:
-      InsideOut__ConnectionString: Host=db;Database=insideout;Username=insideout;Password=${POSTGRES_PASSWORD}
-      InsideOut__AccessToken: ${INSIDEOUT_TOKEN:-}
-      InsideOut__Mind__HalfLifeDays: ${HALF_LIFE_DAYS:-30}
+      Tacitly__ConnectionString: Host=db;Database=tacitly;Username=tacitly;Password=${POSTGRES_PASSWORD}
+      Tacitly__AccessToken: ${TACITLY_TOKEN:-}
+      Tacitly__Mind__HalfLifeDays: ${HALF_LIFE_DAYS:-30}
 
 volumes:
   db:

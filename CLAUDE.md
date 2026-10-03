@@ -2,19 +2,17 @@
 
 A self-hosted tool where the user (Jim) writes his own vectors: he defines lenses (vector spaces) with bipolar dimensions, scores thoughts, aspirations and patterns from -5 to +5, and Postgres/pgvector keeps the vectors and does the searching. Read `README.md` for the model and `docs/PRINCIPLES.md` before proposing features.
 
-## Handoff (3 October 2026)
+## Handoff (2 October 2026)
 
-- **State:** v3.0.0 is committed and tagged. It was built in a cloud sandbox that could not download NuGet packages, so the real Npgsql driver has never been compiled against or run. All testing went through a stand-in that ran the app's real SQL through `psql`; `scripts/smoke.py` passed 24 checks that way. The GitHub Actions workflow has never run either.
+- **State:** Renamed to Tacitly and pushed (6082073). The first CI run passed: real Npgsql against Postgres, full smoke test, and the Docker image build.
 - **Next:**
-  1. ~~Rename the project~~ Done: now Tacitly (see Name below).
-  2. Push and get CI green. This is the first real run of Npgsql; expect to fix type-mapping issues in `src/Tacitly.Api/Store/Db.cs` if any appear.
-  3. `docker compose up --build` on the homelab, then `python3 scripts/smoke.py http://<host>:8080 <token>`.
-  4. Build specs in this order: 0001 evening journal, 0003 playbook, 0002 pick-up brief.
+  1. `docker compose up --build` on the homelab, then `python3 scripts/smoke.py http://<host>:8080 <token>`.
+  2. Build specs in this order: 0001 evening journal, 0003 playbook, 0002 pick-up brief.
 - **Watch out:**
   - `db/schema.sql` runs on every start and must stay idempotent. It carries the v1 and v2 upgrade paths.
   - Vectors are built only by the triggers in `schema.sql`. Application code never writes a vector. The rule (`score_or_0 * sqrt(weight)`, active dimensions by position, `scorer = 'me'` only) is mirrored in `VectorSpace` in `Engine/Algorithms.cs`; change both together.
-  - Likely Npgsql trouble spots: string parameters cast with `CAST(@x AS jsonb)`, `float` into a `real` column, `Guid[]` with `ANY(@ids)` and `unnest(@ids) WITH ORDINALITY`, and the multi-statement schema script with `$$` bodies sent as one command.
   - `src/Tacitly.Api/wwwroot/` is build output and is not committed. Run `npm run build` in `web/` to produce it.
+  - On Jim's Windows machine `python3` hits the Store stub; use `python` (3.11). The clone has `core.filemode false`.
 
 ## Name
 

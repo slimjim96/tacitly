@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: insideout
+          POSTGRES_USER: insideout
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U insideout -d insideout"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      InsideOut__ConnectionString: Host=localhost;Database=insideout;Username=insideout;Password=ci
+      InsideOut__AccessToken: ci-token
+      ASPNETCORE_URLS: http://localhost:5080
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build UI (typecheck + bundle into wwwroot)
+        working-directory: web
+        run: npm ci --no-audit --no-fund && npm run build
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build API
+        run: dotnet build src/InsideOut.Api -c Release
+
+      # End to end against real Postgres + pgvector through the real Npgsql driver.
+      - name: Start API
+        run: |
+          nohup dotnet run --project src/InsideOut.Api -c Release --no-build > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://localhost:5080/api/health && exit 0; sleep 2; done
+          cat api.log; exit 1
+      - name: Smoke test
+        run: python3 scripts/smoke.py http://localhost:5080 ci-token
+      - name: API log
+        if: always()
+        run: cat api.log
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t insideout:ci .

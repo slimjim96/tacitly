@@ -1,0 +1,8 @@
+.env
+**/bin/
+**/obj/
+web/node_modules/
+
+# Built by `npm run build` in web/ (the Docker build does this for you)
+src/InsideOut.Api/wwwroot/
+*.zip
